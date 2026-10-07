@@ -51,7 +51,7 @@ async function crawl(start: string, maxPages: number): Promise<Doc[]> {
     if (seen.has(url)) continue;
     seen.add(url);
     try {
-      const res = await safeFetch(url, { headers: { 'user-agent': 'RelayBot/0.1 (+https://github.com/relay-support/relay)' } });
+      const res = await safeFetch(url, { headers: { 'user-agent': 'RelayBot/0.1 (+https://github.com/Anandharajan/relay)' } });
       const type = res.headers.get('content-type') ?? '';
       if (!res.ok || !type.includes('html')) continue;
       const doc = htmlToDoc(await res.text(), url);

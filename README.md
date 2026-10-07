@@ -1,11 +1,10 @@
 # Relay
 
-[![CI](https://github.com/relay-support/relay/actions/workflows/ci.yml/badge.svg)](https://github.com/relay-support/relay/actions/workflows/ci.yml)
+[![CI](https://github.com/Anandharajan/relay/actions/workflows/ci.yml/badge.svg)](https://github.com/Anandharajan/relay/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 [![Self-host](https://img.shields.io/badge/self--host-docker%20compose-2496ED)](#self-host-with-docker-fully-open-source-stack)
 [![Live demo](https://img.shields.io/badge/demo-try%20it-8b4513)](#quick-start-local-no-docker-no-keys)
 
-<!-- Replace relay-support/relay with your GitHub owner/repo after creating the repository. -->
 
 **Fin for the next billion customers:** an open-source, BYOK AI agent that resolves support on WhatsApp and web chat in your customers' language, works alongside your team, and keeps its integrations working on its own.
 
