@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { pct, useApi } from '../lib/api';
+import { api, closeStream, pct, useApi } from '../lib/api';
 import { useSession } from '../lib/session';
 import { Loading } from '../components/ui';
 
@@ -9,14 +9,24 @@ export function Home() {
   const sources = useApi<any[]>('/api/knowledge');
   const sims = useApi<any[]>('/api/simulations');
   const stats = useApi<any>('/api/analytics?days=30');
-  const team = useApi<any>('/api/workspace/team');
-  if (!me || sources.loading || sims.loading || stats.loading || !stats.data) return <Loading />;
+  const team = useApi<any>(me?.role === 'viewer' ? null : '/api/workspace/team');
+  if (!me) return <Loading />;
+  if (sources.loading || sims.loading || stats.loading || !stats.data) return <Loading />;
 
   const readySources = (sources.data ?? []).filter((s) => s.status === 'ready' && s.type !== 'learned').length;
+  const demo = me.role === 'viewer';
+  const tour = [
+    { title: 'Chat as a customer', text: 'Open the demo store and ask something — in English, हिंदी or ಕನ್ನಡ. Try an order ID like KC-1042, or ask for a human.', href: '/demo', cta: 'Open demo store ↗' },
+    { title: 'Watch it land in the inbox', text: 'Your chat appears here live, tagged with its language. Escalated chats wait in "Needs you" with the AI\'s suggested answer.', to: '/app/inbox', cta: 'Open inbox' },
+    { title: 'Ask the AI directly', text: 'Test any question against the knowledge base and see the cited sources it would answer from.', to: '/app/knowledge', cta: 'Open knowledge' },
+    { title: 'Check simulations and actions', text: 'See a batch test with its pass rate, and the order-lookup Action the AI calls.', to: '/app/simulations', cta: 'Open simulations' },
+    { title: 'See what it saves', text: 'Resolution rate, CSAT, languages, handoff reasons and cost per resolution.', to: '/app/analytics', cta: 'Open analytics' },
+  ];
   const steps = [
     { done: readySources > 0, title: 'Add knowledge', text: 'Crawl your help center, upload PDFs/DOCX or paste FAQs.', to: '/app/knowledge', cta: 'Add a source' },
     { done: (sims.data ?? []).some((s) => s.status === 'done'), title: 'Run a simulation', text: 'Test 20–50 real questions and check the pass rate before going live.', to: '/app/simulations', cta: 'Run simulation' },
-    { done: (stats.data?.totals?.conversations ?? 0) > 0, title: 'Install the widget', text: 'Paste one script tag on your site, or connect WhatsApp.', to: '/app/settings/install', cta: 'Get the snippet' },
+    { done: (stats.data?.totals?.conversations ?? 0) > 0, title: 'Preview your widget', text: 'Chat with your own AI on a test page — no website needed. The conversation lands in your inbox.', to: '/preview', cta: 'Open preview' },
+    { done: false, title: 'Go live', text: 'Paste one script tag on your site, or connect WhatsApp.', to: '/app/settings/install', cta: 'Get the snippet' },
     { done: (team.data?.members?.length ?? 0) > 1, title: 'Invite your team', text: 'AI and humans share one inbox. Approve drafts, take over, @AI in notes.', to: '/app/settings/team', cta: 'Invite' },
   ];
   const s = stats.data!;
@@ -38,6 +48,29 @@ export function Home() {
         <div className="card stat"><div className="label">Needs a human</div><div className="value">{s.totals.escalated_open}</div><div className="sub">escalated, open</div></div>
       </div>
 
+      {demo ? (
+        <div className="card pad stack">
+          <h2>Take the 2-minute tour</h2>
+          {tour.map((st, i) => (
+            <div className="row" key={st.title} style={{ alignItems: 'flex-start' }}>
+              <span className="badge" style={{ marginTop: 2 }}>{i + 1}</span>
+              <div className="grow">
+                <strong>{st.title}</strong>
+                <p className="muted small">{st.text}</p>
+              </div>
+              {st.href ? <a className="btn sm" href={st.href} target="_blank" rel="noreferrer">{st.cta}</a> : <Link className="btn sm" to={st.to!}>{st.cta}</Link>}
+            </div>
+          ))}
+          <div className="row" style={{ alignItems: 'flex-start' }}>
+            <span className="badge ok" style={{ marginTop: 2 }}>6</span>
+            <div className="grow">
+              <strong>Make it yours</strong>
+              <p className="muted small">Create a free workspace, add your FAQs or help-center URL, preview the widget, then go live. Your workspace is private to you and your team.</p>
+            </div>
+            <a className="btn sm primary" href="/signup" onClick={async (e) => { e.preventDefault(); await api('/api/auth/logout', { body: {} }).catch(() => {}); closeStream(); window.location.assign('/signup'); }}>Create workspace</a>
+          </div>
+        </div>
+      ) : (
       <div className="card pad stack">
         <h2>Get set up</h2>
         {steps.map((st, i) => (
@@ -51,6 +84,7 @@ export function Home() {
           </div>
         ))}
       </div>
+      )}
 
       <div className="grid2">
         <div className="card pad stack">

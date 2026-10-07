@@ -7,6 +7,7 @@ import { hashPassword, signJwt, uuid, verifyPassword } from '../lib/crypto.ts';
 import { rateLimit } from '../lib/ratelimit.ts';
 import { body, fail, ORG_COOKIE, requireOrg, requireUser, SESSION_COOKIE, type AppEnv } from '../http.ts';
 import { audit, createOrg } from '../services/orgs.ts';
+import { DEMO_ORG_NAME } from '../seed.ts';
 
 export const auth = new Hono<AppEnv>();
 
@@ -63,6 +64,27 @@ auth.post('/login', async (c) => {
   const user = await ctx.db.one<{ id: string; password_hash: string }>('select id, password_hash from users where email = $1', [b.email.toLowerCase().trim()]);
   if (!user || !(await verifyPassword(b.password, user.password_hash))) fail(401, 'Wrong email or password');
   await startSession(c, user.id);
+  return c.json({ ok: true });
+});
+
+/** One-click, read-only guest session in the public demo workspace (no sign-up). */
+const DEMO_GUEST_EMAIL = 'guest@demo.relay.local';
+auth.post('/demo', async (c) => {
+  if (c.req.header('x-relay-csrf') !== '1') fail(403, 'Missing CSRF header');
+  if (!config.demo.seed) fail(404, 'The demo workspace is not enabled on this server');
+  limit(c, 'demo');
+  const org = await ctx.db.one<{ id: string }>('select id from orgs where name = $1 order by created_at limit 1', [DEMO_ORG_NAME]);
+  if (!org) fail(404, 'The demo workspace is not ready yet');
+  let guest = await ctx.db.one<{ id: string }>('select id from users where email = $1', [DEMO_GUEST_EMAIL]);
+  if (!guest) {
+    const id = uuid();
+    // Random, never-shared password: the guest can only be entered through this endpoint.
+    await ctx.db.query('insert into users (id, email, name, password_hash) values ($1, $2, $3, $4) on conflict (email) do nothing', [id, DEMO_GUEST_EMAIL, 'Demo visitor', await hashPassword(uuid() + uuid())]);
+    guest = await ctx.db.one<{ id: string }>('select id from users where email = $1', [DEMO_GUEST_EMAIL]);
+  }
+  await ctx.db.query(`insert into members (org_id, user_id, role) values ($1, $2, 'viewer') on conflict (org_id, user_id) do update set role = 'viewer'`, [org!.id, guest!.id]);
+  await startSession(c, guest!.id);
+  setCookie(c, ORG_COOKIE, org!.id, { path: '/', sameSite: 'Lax', secure });
   return c.json({ ok: true });
 });
 

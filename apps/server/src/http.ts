@@ -12,7 +12,8 @@ export interface SessionUser {
   name: string;
 }
 
-export type Role = 'owner' | 'admin' | 'agent';
+/** viewer = read-only guest of the public demo workspace. */
+export type Role = 'owner' | 'admin' | 'agent' | 'viewer';
 
 export type AppEnv = {
   Variables: {
@@ -63,10 +64,20 @@ export const requireOrg: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!org) fail(404, 'Workspace not found');
   c.set('org', org);
   c.set('role', m.role);
+  if (m.role === 'viewer' && VIEWER_HIDDEN.some((p) => c.req.path.startsWith(p))) fail(403, 'Not available in the demo workspace.');
+  if (m.role === 'viewer' && c.req.method !== 'GET' && c.req.method !== 'HEAD' && !VIEWER_WRITES.some((p) => c.req.path.startsWith(p))) {
+    fail(403, 'The demo workspace is read-only. Create your free workspace to try this with your own data.');
+  }
   await next();
 };
 
-const rank: Record<Role, number> = { agent: 1, admin: 2, owner: 3 };
+/** The few non-GET calls a read-only demo guest may make (they change nothing that other visitors see). */
+const VIEWER_WRITES = ['/api/knowledge/ask', '/api/inbox/presence', '/api/me/switch-org'];
+
+/** Admin-only data a demo guest must not read even though it is GET. */
+const VIEWER_HIDDEN = ['/api/workspace/team', '/api/workspace/audit', '/api/workspace/privacy', '/api/workspace/model', '/api/billing'];
+
+const rank: Record<Role, number> = { viewer: 0, agent: 1, admin: 2, owner: 3 };
 
 export function requireRole(min: Role): MiddlewareHandler<AppEnv> {
   return async (c, next) => {

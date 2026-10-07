@@ -15,14 +15,18 @@ const tabs = [
 ];
 
 export function Settings() {
-  const { tab = 'general' } = useParams();
+  const { tab: wanted = 'general' } = useParams();
+  const { me } = useSession();
+  const demo = me?.role === 'viewer';
+  const visible = demo ? tabs.filter((t) => t.id === 'general' || t.id === 'install' || t.id === 'channels') : tabs;
+  const tab = visible.some((t) => t.id === wanted) ? wanted : 'general';
   return (
     <div className="page">
       <div className="page-head">
         <h1>Settings</h1>
       </div>
       <div className="tabs">
-        {tabs.map((t) => (
+        {visible.map((t) => (
           <Link key={t.id} to={`/app/settings/${t.id}`} className={tab === t.id ? 'active' : ''}>{t.label}</Link>
         ))}
       </div>

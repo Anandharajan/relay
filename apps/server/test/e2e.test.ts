@@ -250,3 +250,22 @@ test('BYOK keys are encrypted and never returned', async () => {
   assert.match(m.data.keyHint, /…mnop$/);
   await api('PUT', '/api/workspace/model', { provider: 'default' });
 });
+
+test('public demo dashboard is read-only and hides admin data', async () => {
+  await api('POST', '/api/auth/logout', {});
+  assert.equal((await api('POST', '/api/auth/demo', {})).status, 200);
+  const me = await api('GET', '/api/me');
+  assert.equal(me.data.role, 'viewer');
+  assert.equal(me.data.orgs.length, 1);
+  const list = await api('GET', '/api/inbox/conversations');
+  assert.equal(list.status, 200);
+  const id = list.data.conversations[0].id;
+  assert.equal((await api('POST', `/api/inbox/conversations/${id}/resolve`, {})).status, 403);
+  assert.equal((await api('PATCH', '/api/workspace/settings', {})).status, 403);
+  assert.equal((await api('GET', '/api/workspace/team')).status, 403);
+  assert.equal((await api('GET', '/api/workspace/model')).status, 403);
+  assert.equal((await api('POST', '/api/knowledge/ask', { question: 'How long does delivery take?' })).status, 200);
+  const cfg = await api('GET', '/api/public/config');
+  assert.equal('demoEmail' in cfg.data, false);
+  await api('POST', '/api/auth/logout', {});
+});

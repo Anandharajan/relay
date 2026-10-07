@@ -3,7 +3,7 @@ import { api, ApiError } from './api';
 
 export interface Me {
   user: { id: string; email: string; name: string };
-  role: 'owner' | 'admin' | 'agent';
+  role: 'owner' | 'admin' | 'agent' | 'viewer';
   org: {
     id: string;
     name: string;

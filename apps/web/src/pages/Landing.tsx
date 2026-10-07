@@ -27,8 +27,8 @@ export function Landing() {
           <a href="#pricing" className="hide-sm">Pricing</a>
           <a href="#self-host" className="hide-sm">Self-host</a>
           <a href={REPO_URL} className="hide-sm">GitHub</a>
-          {me ? (
-            <Link className="btn primary" to="/app">Open dashboard</Link>
+          {me && me.role !== 'viewer' ? (
+            <Link className="btn primary" to="/app">Open {me.org.name}</Link>
           ) : (
             <>
               <Link to="/login">Sign in</Link>
@@ -47,9 +47,12 @@ export function Landing() {
           Relay resolves support conversations on WhatsApp and web chat — in your customers' language — grounded in your help content, working alongside your team. The automated resolution of an enterprise AI agent, at a price small businesses can actually afford.
         </p>
         <div className="row wrap" style={{ justifyContent: 'center' }}>
-          <Link className="btn primary lg" to="/demo">Try the live demo →</Link>
-          <Link className="btn lg" to="/signup">Create a free workspace</Link>
+          <Link className="btn primary lg" to="/demo">Chat with the live demo →</Link>
+          <Link className="btn lg" to="/try">Explore the dashboard</Link>
         </div>
+        <p className="small muted" style={{ textAlign: 'center' }}>
+          No sign-up for the demo. <Link to="/signup">Create a free workspace</Link> when you're ready to use your own help content.
+        </p>
         <div className="card chat-mock" aria-label="Example conversation">
           <div className="q">डिलीवरी में कितने दिन लगते हैं?</div>
           <div className="a">

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Landing } from './pages/Landing';
 import { DemoStore } from './pages/DemoStore';
 import { Login, Signup, Invite } from './pages/Auth';
+import { Try, Preview } from './pages/Try';
 import { Layout } from './app/Layout';
 import { Home } from './app/Home';
 import { Inbox } from './app/Inbox';
@@ -19,6 +20,8 @@ export function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/invite/:token" element={<Invite />} />
+      <Route path="/try" element={<Try />} />
+      <Route path="/preview" element={<Preview />} />
       <Route path="/app" element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="inbox" element={<Inbox />} />

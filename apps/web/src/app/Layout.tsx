@@ -60,8 +60,9 @@ export function Layout() {
   const logout = async () => {
     await api('/api/auth/logout', { body: {} });
     closeStream();
+    const wasDemo = me?.role === 'viewer';
     await refresh();
-    navigate('/login');
+    navigate(wasDemo ? '/' : '/login');
   };
 
   return (
@@ -109,13 +110,22 @@ export function Layout() {
             <span className="grow small">
               <strong>{me.user.name}</strong>
               <br />
-              <span className="muted">{me.role}</span>
+              <span className="muted">{me.role === 'viewer' ? 'read-only demo' : me.role}</span>
             </span>
-            <button className="btn sm ghost" onClick={logout}>Sign out</button>
+            <button className="btn sm ghost" onClick={logout}>{me.role === 'viewer' ? 'Exit demo' : 'Sign out'}</button>
           </div>
         </div>
       </aside>
       <main className="main">
+        {me.role === 'viewer' && (
+          <div className="card pad row wrap" style={{ gap: 10, marginBottom: 16, background: 'var(--accent-soft, #eef2ff)' }}>
+            <span className="grow small">
+              <strong>You're exploring the {me.org.name} demo workspace</strong> — read-only, shared with other visitors. Nothing you see here is your data.
+            </span>
+            <a className="btn sm" href="/demo" target="_blank" rel="noreferrer">Chat as a customer ↗</a>
+            <a className="btn sm primary" href="/signup" onClick={async (e) => { e.preventDefault(); await api('/api/auth/logout', { body: {} }).catch(() => {}); closeStream(); window.location.assign('/signup'); }}>Create your workspace</a>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

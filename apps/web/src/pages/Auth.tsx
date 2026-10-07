@@ -19,10 +19,10 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [demoEmail, setDemoEmail] = useState<string | null>(null);
+  const [demoDashboard, setDemoDashboard] = useState(false);
 
   useEffect(() => {
-    api('/api/public/config').then((c) => setDemoEmail(c.demoEmail), () => {});
+    api('/api/public/config').then((c) => setDemoDashboard(Boolean(c.demoDashboard)), () => {});
   }, []);
 
   const submit = async (e: FormEvent) => {
@@ -56,9 +56,9 @@ export function Login() {
           <input className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Field>
         <button className="btn primary lg" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-        {demoEmail && (
+        {demoDashboard && (
           <p className="small muted">
-            Exploring? The demo workspace owner is <code>{demoEmail}</code> — the password is <code>DEMO_PASSWORD</code> in the server's <code>.env</code>.
+            Just exploring? <Link to="/try">Look around the demo workspace</Link>, no sign-up needed.
           </p>
         )}
         <p className="small muted">

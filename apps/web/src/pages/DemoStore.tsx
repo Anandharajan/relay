@@ -65,7 +65,8 @@ export function DemoStore() {
             ))}
           </div>
           <p className="small" style={{ color: '#7a5a3c' }}>
-            Order IDs like <code>KC-1001</code> to <code>KC-9999</code> work. Watch replies land in the inbox: sign in as the demo owner at <Link to="/login">/login</Link>.
+            Order IDs like <code>KC-1001</code> to <code>KC-9999</code> work. Then see the other side:{' '}
+            <a href="/try" target="_blank" rel="noreferrer"><strong>open the team inbox ↗</strong></a> — your chat shows up there, read-only, no sign-up.
           </p>
           {siteKey === null && <div className="error-box">The demo workspace isn't seeded on this server (set DEMO_SEED=true).</div>}
         </div>

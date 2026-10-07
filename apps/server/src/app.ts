@@ -39,7 +39,7 @@ export function buildApp() {
   });
 
   app.get('/api/public/config', async (c) =>
-    c.json({ demoSiteKey: await demoSiteKey(), allowSignup: config.allowSignup, mode: config.mode, demoEmail: config.demo.seed ? config.demo.email : null }),
+    c.json({ demoSiteKey: await demoSiteKey(), allowSignup: config.allowSignup, mode: config.mode, demoDashboard: config.demo.seed }),
   );
 
   app.route('/api/auth', auth);
