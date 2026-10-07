@@ -17,7 +17,7 @@ analytics.get('/', async (c) => {
             count(*) filter (where resolved_by = 'ai')::int as ai_resolved,
             count(*) filter (where resolved_by = 'human')::int as human_resolved,
             count(*) filter (where status = 'escalated')::int as escalated_open,
-            count(*) filter (where not exists (select 1 from messages m where m.conversation_id = c.id and m.role = 'human'))::int as deflected,
+            count(*) filter (where status not in ('escalated', 'human') and coalesce(resolved_by, 'ai') <> 'human' and not exists (select 1 from messages m where m.conversation_id = c.id and m.role = 'human'))::int as deflected,
             avg(csat)::float as csat_avg,
             count(csat)::int as csat_count,
             count(*) filter (where csat >= 4)::int as csat_positive

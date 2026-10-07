@@ -114,6 +114,11 @@ test('answers in Hindi and Kannada from vernacular knowledge', async () => {
   assert.equal(kn.data.lang, 'kn');
   assert.equal(kn.data.kind, 'answer');
   assert.match(kn.data.text, /₹2,000/);
+  const returns = await api('POST', '/api/knowledge/ask', { question: 'ನಿಮ್ಮ ರಿಟರ್ನ್ ನೀತಿ ಏನು?' });
+  assert.equal(returns.data.lang, 'kn');
+  assert.equal(returns.data.kind, 'answer');
+  assert.match(returns.data.text, /7 ದಿನಗಳೊಳಗೆ/);
+  assert.ok(returns.data.citations.length);
 });
 
 test('PII never reaches the model input', async () => {
@@ -217,6 +222,17 @@ test('analytics and DPDP export/erase', async () => {
   const a = await api('GET', '/api/analytics?days=30');
   assert.ok(a.data.totals.conversations >= 12);
   assert.ok(a.data.languages.some((l: any) => l.lang === 'hi'));
+  const pub = await api('GET', '/api/public/config');
+  const session = await api('POST', '/widget/session', { siteKey: pub.data.demoSiteKey });
+  const sent = await api('POST', '/widget/messages', { content: 'talk to a human' }, { authorization: `Bearer ${session.data.token}` });
+  await waitFor(async () => {
+    const detail = await api('GET', `/api/inbox/conversations/${sent.data.conversationId}`);
+    return detail.data.conversation.status === 'escalated';
+  }, 'requested human handoff');
+  const afterHandoff = await api('GET', '/api/analytics?days=30');
+  assert.equal(afterHandoff.data.totals.conversations, a.data.totals.conversations + 1);
+  assert.equal(afterHandoff.data.totals.deflected, a.data.totals.deflected);
+  assert.equal(afterHandoff.data.totals.escalated_open, a.data.totals.escalated_open + 1);
   const conv = (await api('GET', '/api/inbox/conversations?view=all')).data.conversations[0];
   const exp = await api('GET', `/api/workspace/privacy/export?visitor=${conv.visitor_id}`);
   assert.equal(exp.data.conversations.length, 1);
