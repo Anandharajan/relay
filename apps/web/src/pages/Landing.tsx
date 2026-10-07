@@ -39,12 +39,12 @@ export function Landing() {
       </nav>
 
       <header className="hero">
-        <span className="pill">Made for India · Open source · BYOK · Self-hostable</span>
+        <span className="pill">Open-source AI helpdesk · WhatsApp + web chat · BYOK · Self-hostable</span>
         <h1>
           AI support for the <em>next billion</em> customers
         </h1>
         <p className="lead">
-          Relay resolves support conversations on WhatsApp and web chat — in your customers' language — grounded in your help content, working alongside your team. Fin-style resolution, at a price small businesses can actually afford.
+          Relay resolves support conversations on WhatsApp and web chat — in your customers' language — grounded in your help content, working alongside your team. The automated resolution of an enterprise AI agent, at a price small businesses can actually afford.
         </p>
         <div className="row wrap" style={{ justifyContent: 'center' }}>
           <Link className="btn primary lg" to="/demo">Try the live demo →</Link>
@@ -65,7 +65,7 @@ export function Landing() {
       </header>
 
       <section className="section" id="features">
-        <h2>Everything Fin does, built for WhatsApp-first businesses</h2>
+        <h2>A full AI support agent, built for WhatsApp-first businesses</h2>
         <p className="sub">For D2C brands, clinics, coaching institutes and local services that support customers in Hindi, Kannada and Tamil — on a tight budget.</p>
         <div className="grid3">
           {features.map((f) => (
@@ -80,19 +80,19 @@ export function Landing() {
 
       <section className="section">
         <h2>Priced for India, not Silicon Valley</h2>
-        <p className="sub">Fin charges $0.99 per resolution with a monthly minimum. Relay's overage is about ₹5 (~$0.06) — roughly 16× cheaper — and free if you self-host.</p>
+        <p className="sub">Most AI support agents bill in dollars per resolution — often around $0.99 each, plus seats and monthly minimums. Relay's overage is about ₹5 (~$0.06), and free if you self-host.</p>
         <div className="card table-wrap" style={{ maxWidth: 760, margin: '0 auto' }}>
           <table className="table compare">
             <thead>
-              <tr><th></th><th>Relay</th><th>Fin by Intercom</th></tr>
+              <tr><th></th><th>Relay</th><th>Typical per-resolution AI agent</th></tr>
             </thead>
             <tbody>
               <tr><td>Price per AI resolution</td><td className="yes">~₹5 (~$0.06)</td><td>$0.99</td></tr>
-              <tr><td>Monthly minimum</td><td className="yes">None (free tier)</td><td>50 resolutions + seats</td></tr>
-              <tr><td>Open source &amp; self-hostable</td><td className="yes">Yes (AGPL)</td><td className="no">No</td></tr>
-              <tr><td>Bring your own LLM key / local models</td><td className="yes">Yes</td><td className="no">—</td></tr>
-              <tr><td>INR billing with UPI Autopay</td><td className="yes">Yes</td><td className="no">—</td></tr>
-              <tr><td>Works with no LLM at all</td><td className="yes">Yes (extractive mode)</td><td className="no">—</td></tr>
+              <tr><td>Monthly minimum</td><td className="yes">None (free tier)</td><td>Common (resolutions + seats)</td></tr>
+              <tr><td>Open source &amp; self-hostable</td><td className="yes">Yes (AGPL)</td><td className="no">Rarely</td></tr>
+              <tr><td>Bring your own LLM key / local models</td><td className="yes">Yes</td><td className="no">Rarely</td></tr>
+              <tr><td>INR billing with UPI Autopay</td><td className="yes">Yes</td><td className="no">Rarely</td></tr>
+              <tr><td>Works with no LLM at all</td><td className="yes">Yes (extractive mode)</td><td className="no">No</td></tr>
             </tbody>
           </table>
         </div>
@@ -126,7 +126,10 @@ export function Landing() {
           <pre>{`git clone ${REPO_URL} relay && cd relay
 cp .env.example .env        # set RELAY_SECRET, optionally a model key
 docker compose -f deploy/docker-compose.yml up -d
-# → http://localhost:8787   (add --profile ollama for local models)`}</pre>
+# → http://localhost:8787
+
+# optional: local models with Ollama
+docker compose -f deploy/docker-compose.yml --profile ollama up -d`}</pre>
         </div>
       </section>
 

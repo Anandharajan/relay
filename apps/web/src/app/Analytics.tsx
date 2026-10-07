@@ -28,7 +28,7 @@ export function Analytics() {
   const t = data.totals;
   const daily: { day: string; conversations: number; ai_resolved: number; human_resolved: number }[] = data.daily;
   const max = Math.max(1, ...daily.map((d) => Math.max(d.conversations, d.ai_resolved + d.human_resolved)));
-  const savings = data.finEquivalentInr - data.costInr;
+  const savings = data.perResolutionEquivalentInr - data.costInr;
 
   return (
     <div className="page">
@@ -134,9 +134,9 @@ export function Analytics() {
           )}
         </div>
         <div className="card pad stack">
-          <h3>vs. Fin pricing</h3>
-          <p className="small muted">At $0.99 per resolution, Fin would have charged about</p>
-          <div style={{ fontSize: 26, fontWeight: 750 }}>{inr(data.finEquivalentInr)}</div>
+          <h3>vs. per-resolution pricing</h3>
+          <p className="small muted">At a typical $0.99 per AI resolution, these would have cost about</p>
+          <div style={{ fontSize: 26, fontWeight: 750 }}>{inr(data.perResolutionEquivalentInr)}</div>
           <p className="small">for these {t.ai_resolved} AI resolutions. Your model spend: <strong>{inr(data.costInr, 2)}</strong>{savings > 0 && <> — <span style={{ color: 'var(--ok)' }}>{inr(savings)} saved</span></>}.</p>
         </div>
       </div>

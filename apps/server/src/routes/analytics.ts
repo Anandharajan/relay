@@ -71,8 +71,8 @@ analytics.get('/', async (c) => {
     tokens: cost!.tokens,
     aiMessages: cost!.ai_messages,
     costPerResolutionInr: t.ai_resolved ? cost!.cost_inr / t.ai_resolved : 0,
-    // What the same AI resolutions would cost on Fin at $0.99 each.
-    finEquivalentInr: t.ai_resolved * 0.99 * config.usdToInr,
+    // What the same AI resolutions would cost at a typical $0.99 per-resolution price.
+    perResolutionEquivalentInr: t.ai_resolved * 0.99 * config.usdToInr,
     daily,
     languages,
     channels,
