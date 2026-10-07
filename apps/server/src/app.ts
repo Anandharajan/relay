@@ -27,6 +27,8 @@ export function buildApp() {
 
   app.onError((err, c) => {
     if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
+    // Malformed ids (e.g. a non-UUID in the URL) are a client error, not a server failure.
+    if ((err as { code?: string })?.code === '22P02') return c.json({ error: 'Not found' }, 404);
     console.error('[http]', c.req.method, c.req.path, err);
     return c.json({ error: 'Internal server error' }, 500);
   });
