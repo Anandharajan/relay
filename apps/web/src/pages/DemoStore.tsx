@@ -59,6 +59,7 @@ export function DemoStore() {
           <p className="small">
             Open the chat (bottom-right) and try any of these — it answers in your language, looks up orders through an Action, and hands off to a human when it doesn't know.
           </p>
+          <p className="small">Demo chats are public and visible to other visitors. Please don't enter personal details.</p>
           <div className="row wrap" style={{ gap: 6 }}>
             {tries.map((t) => (
               <code key={t}>{t}</code>
