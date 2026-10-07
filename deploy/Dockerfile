@@ -1,5 +1,5 @@
 # Relay: single image serving the API, dashboard PWA, landing page and widget.js
-FROM node:24-slim AS build
+FROM node:25-slim AS build
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
@@ -10,7 +10,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build && pnpm --filter @relay/server deploy --prod --legacy /out/server
 
-FROM node:24-slim
+FROM node:25-slim
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=8787 \
