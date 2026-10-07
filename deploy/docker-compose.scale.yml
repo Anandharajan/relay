@@ -1,0 +1,39 @@
+# Horizontal scale-out on one or more Docker hosts:
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.scale.yml up -d --scale relay=3
+# - relay:  stateless web instances (HTTP, SSE, widget API), RELAY_ROLE=web
+# - worker: background jobs (ingestion, simulations, cron), RELAY_ROLE=worker; scale it separately
+# - caddy:  load balancer + automatic HTTPS; SSE-safe (no response buffering)
+# Realtime events cross instances through Postgres LISTEN/NOTIFY; jobs are claimed with SKIP LOCKED.
+services:
+  relay:
+    environment:
+      RELAY_ROLE: web
+    ports: !reset []
+
+  worker:
+    extends:
+      service: relay
+    environment:
+      RELAY_ROLE: worker
+      JOB_CONCURRENCY: "4"
+    ports: !reset []
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}   # set to your domain (e.g. relay.example.in) for automatic HTTPS
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - relay
+
+volumes:
+  caddy-data:

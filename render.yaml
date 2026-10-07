@@ -1,0 +1,27 @@
+# Render Blueprint: New > Blueprint > pick this repo.
+services:
+  - type: web
+    name: relay
+    runtime: docker
+    dockerfilePath: ./deploy/Dockerfile
+    dockerContext: .
+    plan: free            # data lives in Aiven Postgres (see docs/AIVEN.md)
+    region: singapore
+    healthCheckPath: /healthz
+    envVars:
+      - key: RELAY_SECRET
+        generateValue: true
+      - key: RELAY_MODE
+        value: selfhost
+      - key: PUBLIC_URL
+        sync: false        # set to https://<your-service>.onrender.com after first deploy
+      - key: DATABASE_URL
+        sync: false        # paste from local .env (Aiven, sslmode=verify-full)
+      - key: DATABASE_CA_CERT_FILE
+        value: /etc/secrets/aiven-ca.pem   # add data/aiven-ca.pem as a Secret File named aiven-ca.pem
+      - key: LLM_PROVIDER
+        value: extractive
+      - key: DEMO_SEED
+        value: "true"
+      - key: DEMO_PASSWORD
+        generateValue: true

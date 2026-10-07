@@ -1,0 +1,76 @@
+name: Release
+
+# Push a tag like v0.2.0 to publish ghcr.io/<owner>/<repo>:0.2.0 (+ :latest), create a GitHub
+# Release with generated notes, and optionally trigger a production deploy.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write   # create the GitHub Release
+  packages: write   # push to GitHub Container Registry
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  github-release:
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+
+  deploy:
+    # Optional continuous deployment. Set the repository secret DEPLOY_HOOK_URL to your host's
+    # deploy hook (Render, Railway, Coolify, Dokploy, …) and it redeploys with the new image.
+    needs: image
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
+      PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+    steps:
+      - name: Trigger deploy
+        if: env.DEPLOY_HOOK_URL != ''
+        run: curl -fsS -X POST "$DEPLOY_HOOK_URL"
+      - name: Wait for the new version to be healthy
+        if: env.DEPLOY_HOOK_URL != '' && env.PUBLIC_URL != ''
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS "$PUBLIC_URL/healthz"; then exit 0; fi
+            sleep 10
+          done
+          echo "Production did not become healthy" && exit 1

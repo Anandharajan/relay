@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & ideas (Discussions)
+    url: https://github.com/relay-support/relay/discussions
+    about: Ask questions, share your setup, or propose bigger ideas.
+  - name: Security vulnerability
+    url: https://github.com/relay-support/relay/security/advisories/new
+    about: Please report security issues privately.

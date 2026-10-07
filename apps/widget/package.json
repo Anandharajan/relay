@@ -1,0 +1,17 @@
+{
+  "name": "@relay/widget",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Relay embeddable chat widget (one <script> tag).",
+  "scripts": {
+    "build": "esbuild src/widget.ts --bundle --minify --format=iife --target=es2018 --outfile=../web/public/widget.js",
+    "dev": "esbuild src/widget.ts --bundle --format=iife --target=es2018 --outfile=../web/public/widget.js --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  }
+}

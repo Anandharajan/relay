@@ -1,0 +1,14 @@
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+	reverse_proxy {
+		# Re-resolve the Docker service name so every `relay` replica gets traffic.
+		dynamic a relay 8787 {
+			refresh 10s
+		}
+		lb_policy least_conn
+		health_uri /healthz
+		health_interval 10s
+		# Stream SSE (inbox + widget realtime) without buffering.
+		flush_interval -1
+	}
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/
+.env
+*.log
+.DS_Store
+apps/web/public/widget.js
+apps/web/dev-dist/
+.cache/
+.fin-src.tgz
+*.pem
