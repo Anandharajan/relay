@@ -33,7 +33,7 @@ jobs:
           size=$(stat -c%s apps/web/dist/widget.js)
           echo "widget.js: $size bytes"
           test "$size" -lt 30720
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: web-dist
           path: apps/web/dist
