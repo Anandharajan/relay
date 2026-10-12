@@ -20,7 +20,7 @@ export const styles = `
 header { background: var(--brand); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.22); display: grid; place-items: center; font-weight: 700; font-size: 12px; }
 .titles { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.titles .sub { font-size: 12px; opacity: .85; }
+.titles .sub { font-size: 12px; }
 .close { background: none; border: 0; color: #fff; font-size: 26px; cursor: pointer; line-height: 1; padding: 0 4px; }
 .status { background: #fef3c7; color: #92400e; font-size: 12.5px; padding: 8px 14px; }
 .log { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: var(--w-log); }

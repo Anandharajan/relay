@@ -40,7 +40,8 @@ export function DemoStore() {
   useEffect(() => {
     if (!siteKey) return;
     const s = document.createElement('script');
-    s.src = '/widget.js';
+    s.src = '/widget.js?hospital-theme=2';
+    s.dataset.theme = document.querySelector<HTMLElement>('.hospital')?.dataset.theme || 'system';
     s.async = true;
     s.onload = () => {
       const host = document.getElementById('relay-widget');

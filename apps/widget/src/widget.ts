@@ -80,6 +80,7 @@ interface Msg {
   // ---------- DOM ----------
   const host = document.createElement('div');
   host.id = 'relay-widget';
+  host.dataset.theme = script.dataset.theme || 'system';
   const root = host.attachShadow({ mode: 'open' });
   const left = script.dataset.position === 'left';
   root.innerHTML = `<style>${styles}</style>
