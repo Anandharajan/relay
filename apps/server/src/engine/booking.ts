@@ -28,7 +28,7 @@ interface BookingState {
 }
 
 const bookRe =
-  /\b(book|booking|appointment|appoinment|apointment|schedule (a |an )?(visit|consult\w*|session)|consultation|see (a |the )?(doctor|dr)|slot|token)\b|அப்பாயின்ட்மென்ட்|அப்பாய்ண்ட்மெண்ட்|முன்பதிவு|டாக்டரை (பார்க்க|சந்திக்க)|அபாயின்ட்மென்ட்|अपॉइंटमेंट|अपॉइंटमेंट|बुक कर|डॉक्टर से मिल|ಅಪಾಯಿಂಟ್ಮೆಂಟ್|ಬುಕ್ ಮಾಡ|అపాయింట్‌మెంట్|బుక్ చేయ/i;
+  /\b(book|booking|appointment|appoinment|apointment|schedule (a |an )?(visit|consult\w*|session)|see (a |the )?(doctor|dr)|slot|token)\b|அப்பாயின்ட்மென்ட்|அப்பாய்ண்ட்மெண்ட்|முன்பதிவு|டாக்டரை (பார்க்க|சந்திக்க)|அபாயின்ட்மென்ட்|अपॉइंटमेंट|अपॉइंटमेंट|बुक कर|डॉक्टर से मिल|ಅಪಾಯಿಂಟ್ಮೆಂಟ್|ಬುಕ್ ಮಾಡ|అపాయింట్‌మెంట్|బుక్ చేయ/i;
 const changeRe = /\b(cancel|reschedul\w*|postpone|change (my )?(appointment|time|slot))\b|ரத்து|மாற்ற|रद्द|बदल|ರದ್ದು|రద్దు/i;
 const arrivedRe =
   /\b(i('?m| am) (here|at the (clinic|hospital|reception|centre|center))|i (have )?(arrived|reached)|i('?ve)? reached|just (arrived|reached)|reached (the )?(clinic|hospital))\b|வந்துவிட்டேன்|வந்து விட்டேன்|வந்துட்டேன்|பहुँच गया|पहुँच गया|पहुंच गया|पहुँच गई|पहुंच गई|ತಲುಪಿದ್ದೇನೆ|ಬಂದಿದ್ದೇನೆ|చేరుకున్నాను|వచ్చాను/i;
@@ -184,3 +184,4 @@ export async function followupReply(text: string, meta: Record<string, any> | un
   await ctx.db.query('update followups set status = $2, reply = $3 where id = $1', [id, outcome, text.slice(0, 500)]);
   return { outcome, followupId: id };
 }
+
