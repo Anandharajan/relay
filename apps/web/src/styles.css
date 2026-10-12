@@ -293,13 +293,23 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .star.on { color: #f59e0b; }
 
 /* ── demo hospital site ─────────────────────────────── */
-.hospital { background: #f6fbfa; min-height: 100vh; }
+.hospital { --bg: #f6fbfa; --surface: #ffffff; --surface-2: #e5f2ef; --text: #162e2a; --muted: #47635d; --brand: #08675f; --border: #b6ccc6; background: var(--bg); color: var(--text); color-scheme: light; min-height: 100vh; }
+.hospital[data-theme="dark"] { --bg: #0c1917; --surface: #142923; --surface-2: #203a33; --text: #edf8f4; --muted: #b4cec5; --brand: #7ee4cf; --border: #48665d; color-scheme: dark; }
+@media (prefers-color-scheme: dark) {
+  .hospital:not([data-theme="light"]):not([data-theme="dark"]) { --bg: #0c1917; --surface: #142923; --surface-2: #203a33; --text: #edf8f4; --muted: #b4cec5; --brand: #7ee4cf; --border: #48665d; color-scheme: dark; }
+}
 .hospital header.top { background: #0f766e; color: #fff; }
-.hospital .ta-banner { background: linear-gradient(90deg, #0f766e, #14b8a6); color: #fff; padding: 22px 20px; border-radius: 16px; display: flex; flex-direction: column; gap: 6px; }
+.hospital .ta-banner { background: linear-gradient(90deg, #115e59, #0f766e); color: #fff; padding: 22px 20px; border-radius: 16px; display: flex; flex-direction: column; gap: 6px; }
 .hospital .ta-banner h1 { font-size: 28px; }
 .hospital .strip { background: #fef3c7; color: #92400e; text-align: center; padding: 8px 12px; font-size: 14px; font-weight: 600; }
 .hospital .depts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.hospital .dept { background: #fff; border: 1px solid #d1e7e4; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+.hospital .dept { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+.hospital .try { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+.hospital code { background: var(--surface-2); color: var(--text); border-radius: 5px; padding: 3px 6px; overflow-wrap: anywhere; }
+.hospital a { text-decoration: underline; text-underline-offset: 3px; }
+.hospital .theme-picker { color: #fff; font-size: 13px; }
+.hospital .theme-picker select { background: #fff; color: #162e2a; border: 1px solid #b6ccc6; padding: 5px 8px; border-radius: 6px; font: inherit; }
+.hospital :focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
 @media (max-width: 700px) { .admin-bar, .admin-tabs, .admin-main { padding-left: 16px; padding-right: 16px; } .queue-grid { grid-template-columns: 1fr; } }
 .grid5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; } @media (max-width: 1000px) { .grid5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } } @media (max-width: 560px) { .grid5 { grid-template-columns: 1fr; } }
 .bars .bar { max-width: 36px; } .bars { justify-content: flex-start; } .visit .btn.primary { background: var(--vbrand); border-color: var(--vbrand); }

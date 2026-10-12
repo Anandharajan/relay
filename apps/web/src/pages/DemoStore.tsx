@@ -25,6 +25,9 @@ const tries = [
 /** A fictional Chennai hospital website with the Relay assistant installed, for the live demo. */
 export function DemoStore() {
   const [siteKey, setSiteKey] = useState<string | null | undefined>(undefined);
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('relay-demo-theme') || 'system'; } catch { return 'system'; }
+  });
 
   useEffect(() => {
     api<{ demoSiteKey: string | null }>('/api/public/config').then((c) => setSiteKey(c.demoSiteKey), () => setSiteKey(null));
@@ -47,7 +50,7 @@ export function DemoStore() {
   }, [siteKey]);
 
   return (
-    <div className="hospital">
+    <div className="hospital" data-theme={theme}>
       <div className="strip">🚑 அவசர சிகிச்சை 24 மணி நேரமும் · 24×7 Emergency: call 108</div>
       <header className="top">
         <div className="wrap row between wrap" style={{ padding: '14px 20px', gap: 8 }}>
@@ -55,7 +58,17 @@ export function DemoStore() {
             <strong style={{ fontSize: 19 }}>பூந்தளிர் மருத்துவமனை</strong>
             <div className="small" style={{ opacity: 0.9 }}>Poonthalir Hospital · Anna Nagar, Chennai</div>
           </div>
-          <span className="small" style={{ opacity: 0.9 }}>OPD திங்கள்–சனி 8AM–8PM · ஞாயிறு 9AM–1PM</span>
+          <div className="stack" style={{ gap: 6 }}>
+            <span className="small">OPD திங்கள்–சனி 8AM–8PM · ஞாயிறு 9AM–1PM</span>
+            <label className="theme-picker">Appearance{' '}
+              <select aria-label="Demo appearance" value={theme} onChange={(e) => {
+                setTheme(e.target.value);
+                try { localStorage.setItem('relay-demo-theme', e.target.value); } catch { /* Storage is optional. */ }
+              }}>
+                <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>
+              </select>
+            </label>
+          </div>
         </div>
       </header>
       <main className="wrap stack lg" style={{ padding: '22px 20px 120px' }}>
