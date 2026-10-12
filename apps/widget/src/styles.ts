@@ -46,6 +46,7 @@ header { background: var(--brand); color: #fff; padding: 14px 16px; display: fle
 .composer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid #e5e7eb; background: var(--w-surface); align-items: flex-end; }
 textarea { flex: 1; resize: none; border: 1px solid var(--w-border); border-radius: 12px; padding: 9px 12px; font: inherit; outline: none; max-height: 120px; color: var(--w-text); background: var(--w-surface); }
 textarea:focus { border-color: var(--brand); }
+textarea::placeholder { color: var(--w-muted); opacity: 1; }
 .composer button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--brand); color: #fff; cursor: pointer; display: grid; place-items: center; flex: none; }
 footer { display: flex; justify-content: center; gap: 6px; font-size: 11.5px; color: var(--w-muted); padding: 6px 0 9px; background: var(--w-surface); }
 footer button { background: none; border: 0; color: var(--w-muted); cursor: pointer; font: inherit; text-decoration: underline; padding: 0; }
