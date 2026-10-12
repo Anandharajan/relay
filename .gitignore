@@ -9,3 +9,6 @@ apps/web/dev-dist/
 .cache/
 .fin-src.tgz
 *.pem
+
+__pycache__/
+*.pyc
