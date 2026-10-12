@@ -400,6 +400,9 @@ test('burst messages give one consolidated reply and unrelated requests are flag
   await api('POST', '/widget/messages', { content: 'What is the consultation fee?', conversationId: id }, W);
   await waitFor(async () => (await api('GET', '/widget/conversation', undefined, W)).data.messages.some((m: any) => m.role === 'ai'), 'consolidated reply');
   await sleep(450);
+  const repeat = await api('POST', '/widget/messages', { content: 'What is the consultation fee?', conversationId: id }, W);
+  assert.equal(repeat.data.duplicate, true); // also after the batching window / original reply
+  await sleep(450);
   assert.equal((await api('GET', '/widget/conversation', undefined, W)).data.messages.filter((m: any) => m.role === 'ai').length, 1);
   await api('POST', '/widget/messages', { content: 'write me a poem', conversationId: id }, W);
   await waitFor(async () => (await api('GET', `/api/inbox/conversations/${id}`)).data.conversation.meta.reviewFlag === 'off_topic', 'off-topic flag');

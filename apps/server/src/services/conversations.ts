@@ -158,6 +158,15 @@ function scheduleAi(org: Org, conv: Conversation, content: string) {
 
 export async function handleCustomerMessage(org: Org, conv: Conversation, content: string): Promise<Message> {
   if (conv.status === 'resolved') await setStatus(conv, 'ai');
+  const normalized = content.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (conv.status === 'ai' && !conv.meta.booking && normalized.length >= 12) {
+    const previous = await ctx.db.one<{ content: string }>(`select content from messages where conversation_id = $1 and role = 'customer' and created_at > now() - interval '10 seconds' order by created_at desc limit 1`, [conv.id]);
+    if (previous?.content.trim().toLowerCase().replace(/\s+/g, ' ') === normalized) {
+      const duplicate = await addMessage(conv, 'customer', content, { meta: { duplicate: true } });
+      await patchMeta(conv, { reviewFlag: 'repeated_message' });
+      return duplicate;
+    }
+  }
   const msg = await addMessage(conv, 'customer', content);
   if (conv.status === 'ai') {
     scheduleAi(org, conv, content);

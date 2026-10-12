@@ -99,7 +99,7 @@ widget.post('/messages', async (c) => {
   let conv = await visitorConversation(c, b.conversationId);
   if (!conv) conv = await createConversation(org, visitorId, 'web', { name: b.name, meta: { pageUrl: b.pageUrl, userAgent: c.req.header('user-agent')?.slice(0, 200) } });
   const msg = await handleCustomerMessage(org, conv, b.content);
-  return c.json({ conversationId: conv.id, message: publicMessage(msg) });
+  return c.json({ conversationId: conv.id, message: publicMessage(msg), duplicate: Boolean(msg.meta?.duplicate) });
 });
 
 /** Attach only to the patient linked to this authenticated visitor's own conversation. */

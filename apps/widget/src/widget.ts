@@ -243,6 +243,7 @@ interface Msg {
       const r = await call('/widget/messages', { method: 'POST', body: { content: text, conversationId: state.conversationId, pageUrl: location.href.slice(0, 500) } });
       temp.id = r.message.id;
       temp.created_at = r.message.created_at;
+      if (r.duplicate) state.typing = false;
       if (state.conversationId !== r.conversationId) {
         state.conversationId = r.conversationId;
         connect();
