@@ -106,7 +106,7 @@ export async function placeCall(payload: { orgId: string; appointmentId?: string
       await ctx.db.query('update calls set external_id = $2 where id = $1', [id, data.sid]);
     } catch (e) {
       await ctx.db.query(`update calls set status = 'failed', outcome = 'none', transcript = transcript || $2::jsonb, updated_at = now() where id = $1`, [
-        id, JSON.stringify([{ who: 'system', text: (e as Error).message }]),
+        id, [{ who: 'system', text: (e as Error).message }],
       ]);
     }
   }
@@ -149,7 +149,7 @@ export async function handleDigit(callId: string, digit: string) {
     }
   }
   await ctx.db.query(`update calls set status = 'completed', outcome = $2, transcript = transcript || $3::jsonb, updated_at = now() where id = $1`, [
-    call.id, outcome, JSON.stringify([{ who: 'callee', text: `pressed ${digit}`, at: new Date().toISOString() }, { who: 'relay', text: reply, at: new Date().toISOString() }]),
+    call.id, outcome, [{ who: 'callee', text: `pressed ${digit}`, at: new Date().toISOString() }, { who: 'relay', text: reply, at: new Date().toISOString() }],
   ]);
   await audit(org.id, 'telecalling', `call.${outcome}`, call.id, { purpose: call.purpose });
   await recordRun({ orgId: org.id, agent: 'telecaller', trigger: 'keypad', clientId: call.client_id, status: outcome === 'worse' || outcome === 'reschedule' ? 'handoff' : 'ok', outcome: `${call.purpose}: ${outcome}`, tags: outcome === 'worse' ? ['handoff.followup_worse'] : outcome === 'reschedule' ? ['handoff.reschedule'] : [], complexity: outcome === 'worse' ? 3 : 2, steps: [{ name: 'gather_dtmf', detail: digit }, { name: 'act', detail: outcome }] });

@@ -316,7 +316,7 @@ export async function seedDemo(): Promise<void> {
 
   if (user) {
     // Replace the previous demo (an online store) with the hospital demo.
-    await ctx.db.query(`delete from orgs where name in (select jsonb_array_elements_text($1::jsonb)) and id in (select org_id from members where user_id = $2)`, [JSON.stringify(LEGACY_DEMO_NAMES), user.id]);
+    await ctx.db.query(`delete from orgs where name in (select jsonb_array_elements_text($1::jsonb)) and id in (select org_id from members where user_id = $2)`, [LEGACY_DEMO_NAMES, user.id]);
   } else {
     const id = uuid();
     await ctx.db.query('insert into users (id, email, name, password_hash) values ($1, $2, $3, $4)', [id, config.demo.email, 'Demo Owner', await hashPassword(config.demo.password)]);

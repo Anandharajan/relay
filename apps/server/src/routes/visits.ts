@@ -243,7 +243,7 @@ visits.post('/outbox/:id/approve', async (c) => {
   if (!row) fail(404, 'Nothing to approve');
   await approveMessage(org.id, c.req.param('id'), c.get('user').name, b.body);
   const ids: string[] = row.meta?.findingIds ?? (row.meta?.findingId ? [row.meta.findingId] : []);
-  if (ids.length) await ctx.db.query(`update findings set status = 'shared', reviewed_by = $2, reviewed_at = now() where id::text in (select jsonb_array_elements_text($1::jsonb)) and status in ('open', 'acknowledged')`, [JSON.stringify(ids), c.get('user').name]);
+  if (ids.length) await ctx.db.query(`update findings set status = 'shared', reviewed_by = $2, reviewed_at = now() where id::text in (select jsonb_array_elements_text($1::jsonb)) and status in ('open', 'acknowledged')`, [ids, c.get('user').name]);
   await audit(org.id, c.get('user').id, 'message.approved', c.req.param('id'), { edited: Boolean(b.body) });
   return c.json({ ok: true });
 });
