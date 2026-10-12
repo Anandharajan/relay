@@ -15,6 +15,16 @@ export interface OrgSettings {
   retentionDays: number;
   consentText: string;
   whatsapp?: { phoneNumberId?: string; verifyToken?: string; enabled?: boolean };
+  /** Institution type: drives labels and vertical guardrails. healthcare turns on medical safety rules. */
+  vertical: 'general' | 'healthcare' | 'education' | 'services';
+  /** Shown in emergency replies (healthcare). */
+  emergencyNumber: string;
+  /** Minutes east of UTC for slot times and reminders (India = 330). */
+  utcOffsetMin: number;
+  /** Telecalling add-on: provider and caller id. */
+  voice?: { provider?: 'simulated' | 'twilio' | 'exotel'; from?: string; accountSid?: string; transferTo?: string };
+  /** Healthcare: allow the workspace model to help read messy reports (off by default). */
+  recordsUseModel?: boolean;
 }
 
 export const defaultSettings: OrgSettings = {
@@ -27,6 +37,9 @@ export const defaultSettings: OrgSettings = {
   idleResolveMinutes: 30,
   retentionDays: 365,
   consentText: 'Chats are processed by AI to help you faster. Personal data is redacted before AI processing.',
+  vertical: 'general',
+  emergencyNumber: '108',
+  utcOffsetMin: 330,
 };
 
 export interface Org {
@@ -114,11 +127,56 @@ export async function llmForOrg(orgId: string): Promise<{ llm: Llm | null; byok:
   return { llm, byok, budgetExceeded };
 }
 
+/**
+ * Subscription model: a base plan per workspace + optional paid add-ons.
+ * Self-hosted installs have everything unlocked (AGPL); limits and add-ons apply in cloud mode.
+ */
 export const plans = {
-  free: { label: 'Cloud Free', priceInr: 0, aiConversations: 100, seats: 2, actions: false, simulations: true },
-  starter: { label: 'Starter', priceInr: 999, aiConversations: 1000, seats: 3, actions: true, simulations: true },
-  growth: { label: 'Growth', priceInr: 3999, aiConversations: 5000, seats: 5, actions: true, simulations: true },
+  free: { label: 'Free', priceInr: 0, aiConversations: 100, seats: 2, staff: 1, visits: true, actions: false, simulations: true, records: false },
+  starter: { label: 'Starter', priceInr: 999, aiConversations: 1000, seats: 3, staff: 3, visits: true, actions: true, simulations: true, records: false },
+  growth: { label: 'Growth', priceInr: 3999, aiConversations: 5000, seats: 8, staff: 15, visits: true, actions: true, simulations: true, records: true },
+  institution: { label: 'Institution', priceInr: 9999, aiConversations: 20000, seats: 30, staff: 100, visits: true, actions: true, simulations: true, records: true },
 } as const;
+
+export const addonCatalog = {
+  telecalling: {
+    label: 'AI telecalling',
+    priceInr: 1999,
+    unit: '/month; call minutes billed directly by your telephony account (BYO Twilio)',
+    description: 'Reminder, confirmation and follow-up calls in Indian languages, with an IVR for inbound calls and transfer to your front desk.',
+  },
+  camera_checkin: {
+    label: 'Camera check-in',
+    priceInr: 2999,
+    unit: '/month per site',
+    description: 'On-premises, opt-in face matching at reception marks visitors as arrived. Video never leaves your premises.',
+  },
+} as const;
+export type AddonKey = keyof typeof addonCatalog;
+export const TRIAL_DAYS = 14;
+
+export async function hasAddon(org: Org, addon: AddonKey): Promise<boolean> {
+  if (config.mode !== 'cloud') return true;
+  const row = await ctx.db.one<{ status: string; expires_at: Date | null }>('select status, expires_at from addons where org_id = $1 and addon = $2', [org.id, addon]);
+  if (!row || row.status === 'cancelled') return false;
+  return !row.expires_at || new Date(row.expires_at) > new Date();
+}
+
+export async function addonStatus(org: Org) {
+  const rows = await ctx.db.query<{ addon: string; status: string; expires_at: Date | null }>('select addon, status, expires_at from addons where org_id = $1', [org.id]);
+  return Object.fromEntries(
+    await Promise.all(
+      (Object.keys(addonCatalog) as AddonKey[]).map(async (k) => {
+        const r = rows.find((x) => x.addon === k);
+        return [k, { ...addonCatalog[k], enabled: await hasAddon(org, k), status: config.mode === 'cloud' ? (r?.status ?? 'inactive') : 'included', expiresAt: r?.expires_at ?? null }] as const;
+      }),
+    ),
+  );
+}
+
+export function planOf(org: Org) {
+  return plans[org.plan as keyof typeof plans] ?? plans.free;
+}
 
 /** Plan limits only apply in cloud mode, and never to BYOK conversations. */
 export async function withinPlan(org: Org, byok: boolean): Promise<boolean> {

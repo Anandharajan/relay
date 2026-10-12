@@ -1,12 +1,17 @@
+import { terms } from '../lib/terms';
 import { useEffect, useState } from 'react';
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api, closeStream, useEvents } from '../lib/api';
 import { useSession } from '../lib/session';
 import { Loading } from '../components/ui';
 
-const nav = [
+const navFor = (T: ReturnType<typeof terms>) => [
   { to: '/app', label: 'Home', icon: '🏠', end: true },
   { to: '/app/inbox', label: 'Inbox', icon: '📥', count: true },
+  { to: '/app/visits', label: T.visits, icon: '🗓️' },
+  { to: '/app/clients', label: T.clients, icon: T.healthcare ? '🧑‍⚕️' : '👥' },
+  ...(T.healthcare ? [{ to: '/app/approvals', label: 'Approvals', icon: '✅' }] : []),
+  { to: '/app/calls', label: 'Calls', icon: '📞' },
   { to: '/app/knowledge', label: 'Knowledge', icon: '📚' },
   { to: '/app/simulations', label: 'Simulations', icon: '🧪' },
   { to: '/app/actions', label: 'Actions', icon: '⚡' },
@@ -94,7 +99,7 @@ export function Layout() {
           <div className="small muted" style={{ padding: '0 10px 8px' }}>{me.org.name}</div>
         )}
         <nav className="nav stack" style={{ gap: 2 }}>
-          {nav.map((n) => (
+          {navFor(terms(me)).map((n: any) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
               <span>{n.icon}</span> {n.label}
               {n.count && attention > 0 && <span className="count">{attention}</span>}
@@ -102,7 +107,8 @@ export function Layout() {
           ))}
         </nav>
         <div className="bottom">
-          <a className="small" href="/demo" target="_blank" rel="noreferrer" style={{ padding: '0 10px' }}>Open demo store ↗</a>
+          {me.isPlatformAdmin && <NavLink to="/admin" className="small admin-link">🛡️ Platform admin</NavLink>}
+          <a className="small" href="/demo" target="_blank" rel="noreferrer" style={{ padding: '0 10px' }}>Open demo hospital site ↗</a>
           {'Notification' in window && Notification.permission === 'default' && (
             <button className="btn sm ghost" onClick={() => Notification.requestPermission()}>🔔 Enable notifications</button>
           )}

@@ -50,6 +50,9 @@ export const config = {
     plans: {
       starter: env.RAZORPAY_PLAN_STARTER ?? '',
       growth: env.RAZORPAY_PLAN_GROWTH ?? '',
+      institution: env.RAZORPAY_PLAN_INSTITUTION ?? '',
+      telecalling: env.RAZORPAY_PLAN_ADDON_TELECALLING ?? '',
+      camera_checkin: env.RAZORPAY_PLAN_ADDON_CAMERA ?? '',
     } as Record<string, string>,
   },
   whatsapp: {
@@ -62,6 +65,8 @@ export const config = {
     password: env.DEMO_PASSWORD ?? 'relay-demo-1234',
   },
   allowSignup: bool(env.ALLOW_SIGNUP, true),
+  /** Platform (super) admins: comma-separated emails. Nobody else can open /admin. */
+  platformAdmins: (env.PLATFORM_ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
   /** Fetching private-network URLs during crawls/actions. Off in cloud mode. */
   allowPrivateFetch: bool(env.ALLOW_PRIVATE_FETCH, env.RELAY_MODE !== 'cloud'),
   usdToInr: Number(env.USD_INR ?? 88),

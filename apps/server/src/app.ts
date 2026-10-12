@@ -18,6 +18,9 @@ import { widget } from './routes/widget.ts';
 import { demoControl, demoStoreApi } from './routes/demo.ts';
 import { whatsapp } from './channels/whatsapp.ts';
 import { demoSiteKey } from './seed.ts';
+import { visits } from './routes/visits.ts';
+import { admin } from './routes/admin.ts';
+import { edge, publicVisit, voiceWebhooks } from './routes/public.ts';
 
 export function buildApp() {
   const app = new Hono();
@@ -28,7 +31,10 @@ export function buildApp() {
   app.onError((err, c) => {
     if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
     // Malformed ids (e.g. a non-UUID in the URL) are a client error, not a server failure.
-    if ((err as { code?: string })?.code === '22P02') return c.json({ error: 'Not found' }, 404);
+    if ((err as { code?: string })?.code === '22P02') {
+      console.warn('[http] invalid input', c.req.method, c.req.path, (err as Error).message);
+      return c.json({ error: 'Not found' }, 404);
+    }
     console.error('[http]', c.req.method, c.req.path, err);
     return c.json({ error: 'Internal server error' }, 500);
   });
@@ -52,11 +58,16 @@ export function buildApp() {
   app.route('/api/analytics', analytics);
   app.route('/api/billing', billing);
   app.route('/api/demo', demoControl);
+  app.route('/api/visits', visits);
+  app.route('/api/admin', admin);
+  app.route('/api/public', publicVisit);
   app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
 
   app.route('/widget', widget);
   app.route('/webhooks/razorpay', razorpayWebhook);
   app.route('/webhooks/whatsapp', whatsapp);
+  app.route('/webhooks/voice', voiceWebhooks);
+  app.route('/edge', edge);
   app.route('/demo-api', demoStoreApi);
 
   // Dashboard PWA, landing page and widget.js (built by apps/web + apps/widget).

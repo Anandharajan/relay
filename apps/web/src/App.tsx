@@ -3,6 +3,12 @@ import { Landing } from './pages/Landing';
 import { DemoStore } from './pages/DemoStore';
 import { Login, Signup, Invite } from './pages/Auth';
 import { Try, Preview } from './pages/Try';
+import { Visit, Checkin } from './pages/Visit';
+import { Visits } from './app/Visits';
+import { Clients, ClientDetail } from './app/Clients';
+import { Approvals } from './app/Approvals';
+import { Calls } from './app/Calls';
+import { Admin } from './admin/Admin';
 import { Layout } from './app/Layout';
 import { Home } from './app/Home';
 import { Inbox } from './app/Inbox';
@@ -22,8 +28,17 @@ export function App() {
       <Route path="/invite/:token" element={<Invite />} />
       <Route path="/try" element={<Try />} />
       <Route path="/preview" element={<Preview />} />
+      <Route path="/v/:code" element={<Visit />} />
+      <Route path="/checkin/:siteKey" element={<Checkin />} />
+      <Route path="/admin" element={<Admin />} />
+      <Route path="/admin/:page" element={<Admin />} />
       <Route path="/app" element={<Layout />}>
         <Route index element={<Home />} />
+        <Route path="visits" element={<Visits />} />
+        <Route path="clients" element={<Clients />} />
+        <Route path="clients/:id" element={<ClientDetail />} />
+        <Route path="approvals" element={<Approvals />} />
+        <Route path="calls" element={<Calls />} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="inbox/:id" element={<Inbox />} />
         <Route path="knowledge" element={<Knowledge />} />

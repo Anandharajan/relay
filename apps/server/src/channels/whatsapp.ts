@@ -50,6 +50,8 @@ whatsapp.post('/', async (c) => {
           [org.id, waId],
         );
         if (!conv) conv = await createConversation(org, waId, 'whatsapp', { name: names[waId], contact: `+${waId}` });
+        // Link to a known patient/client with this number, so visit flows ("I've arrived", waiting time, follow-ups) work.
+        await ctx.db.query(`update clients set conversation_id = $3 where org_id = $1 and phone = $2 and conversation_id is distinct from $3`, [org.id, waId, conv.id]);
         await handleCustomerMessage(org, conv, text);
       }
     }

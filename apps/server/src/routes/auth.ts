@@ -126,6 +126,7 @@ me.get('/', async (c) => {
     org: { id: org.id, name: org.name, plan: org.plan, siteKey: org.site_key, settings: org.settings, whatsappConnected: Boolean(org.secrets.whatsappToken) },
     orgs,
     server: { mode: config.mode, publicUrl: config.publicUrl, billing: Boolean(config.razorpay.keyId) },
+    isPlatformAdmin: config.platformAdmins.includes(user.email.toLowerCase()),
   });
 });
 

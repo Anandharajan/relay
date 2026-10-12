@@ -10,6 +10,9 @@ import { ingestSource } from './jobs/ingest.ts';
 import { runSimulation } from './jobs/simulate.ts';
 import { autoResolveIdle, resyncStaleSources, retentionPurge } from './jobs/maintenance.ts';
 import { seedDemo } from './seed.ts';
+import { visitsTick } from './jobs/visits.ts';
+import { processRecord } from './services/records.ts';
+import { placeCall } from './services/calls.ts';
 
 if (config.usingDevSecret) {
   const msg = 'RELAY_SECRET is not set: using an insecure development secret.';
@@ -29,12 +32,18 @@ registerJob('simulate', runSimulation);
 registerJob('auto_resolve', autoResolveIdle);
 registerJob('retention', retentionPurge);
 registerJob('resync', resyncStaleSources);
+registerJob('visits_tick', visitsTick);
+registerJob('record_process', processRecord);
+registerJob('voice_call', async (p) => {
+  await placeCall(p);
+});
 
 if (config.role !== 'web') {
   await startJobs([
     { everyMs: 60_000, run: () => enqueueOnce('auto_resolve') },
     { everyMs: 6 * 3600_000, run: () => enqueueOnce('retention') },
     { everyMs: 3600_000, run: () => enqueueOnce('resync') },
+    { everyMs: 60_000, run: () => enqueueOnce('visits_tick') },
   ]);
 }
 

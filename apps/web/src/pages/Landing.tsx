@@ -1,18 +1,80 @@
+import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { REPO_URL } from '../lib/links';
 
-const features = [
-  { ico: '💬', title: 'WhatsApp + web chat', text: 'One AI agent on the channel your customers already use. Web widget is a single script tag; WhatsApp Cloud API connects in minutes.' },
-  { ico: '🗣️', title: 'Answers in their language', text: 'Hindi, Kannada, Tamil, Telugu and more — detected automatically and answered from your help content with citations.' },
-  { ico: '👥', title: 'Multiplayer inbox', text: 'AI and humans work the same thread. Approve or edit AI drafts in one tap, @AI inside internal notes, see who is viewing what.' },
-  { ico: '🧠', title: 'Learns from your team', text: 'Every edited draft becomes knowledge. Low-confidence questions escalate with a suggested answer instead of a guess.' },
-  { ico: '⚡', title: 'Actions with a safety net', text: 'Order lookups, cancellations and refunds via your APIs. Sensitive actions need a human to verify before anything happens.' },
-  { ico: '🩹', title: 'Self-healing integrations', text: 'When your order API changes shape, Relay detects the schema drift and proposes the fixed mapping for one-click approval.' },
-  { ico: '🧪', title: 'Simulations before go-live', text: 'Run 50 test questions through the real pipeline and see the pass rate, answers and sources before customers do.' },
-  { ico: '🔐', title: 'DPDP-ready by default', text: 'PII is redacted before any LLM call. Consent log, retention policy, per-customer export/erase and a full audit trail.' },
-  { ico: '🔑', title: 'BYOK or fully local', text: 'Bring your Claude, OpenAI or Gemini key — or run open-weight models on Ollama. Works with no LLM at all, for free.' },
+const institutions = [
+  { ico: '🏥', title: 'Hospitals & clinics', text: 'Appointments, tokens and live waiting time, doctor-approved prep instructions, report reading, findings for the doctor, follow-ups and reminder calls.' },
+  { ico: '🧪', title: 'Diagnostics & labs', text: 'Report status, home-collection bookings, fasting instructions and result delivery on WhatsApp.' },
+  { ico: '🎓', title: 'Schools, colleges & coaching', text: 'Admissions questions, counselling sessions, fee and timetable queries, parent follow-ups.' },
+  { ico: '🛠️', title: 'Service businesses', text: 'Salons, repair centres, legal and finance offices: bookings, queues, reminders and status lookups.' },
 ];
+
+const agents = [
+  { ico: '💬', name: 'Front desk', text: 'Answers from your own help content, in the visitor’s language, with citations. Not sure? It hands over with a draft.' },
+  { ico: '🗓️', name: 'Booking', text: 'Offers real free slots, books, issues a token and a visit link, and answers “how long is the wait?”.' },
+  { ico: '🛡️', name: 'Safety', text: 'Detects emergencies in Tamil, Hindi, English and more, and never gives medical advice. Escalates instantly.' },
+  { ico: '📄', name: 'Intake', text: 'Reads uploaded reports and prescriptions into structured results and medicines.' },
+  { ico: '🩺', name: 'Findings', text: 'Flags critical, abnormal, worsening and overdue results for the doctor, and drafts a patient message for approval.' },
+  { ico: '🔁', name: 'Follow-up', text: 'Checks in after the visit, chases pending tests, recovers no-shows; “worse” replies alert the team.' },
+  { ico: '📞', name: 'Telecaller', text: 'Reminder and follow-up calls with keypad answers (add-on).' },
+  { ico: '📷', name: 'Arrival', text: 'QR and WhatsApp check-in by default; opt-in camera check-in on-premises (add-on).' },
+];
+
+const features = [
+  { ico: '💬', title: 'WhatsApp + web chat', text: 'One assistant on the channel people already use. The web widget is a single script tag; WhatsApp Cloud API connects in minutes.' },
+  { ico: '👩‍⚕️', title: 'Human in the loop', text: 'AI and staff share one inbox. Clinical messages wait in Approvals until a doctor edits and sends them.' },
+  { ico: '⏱️', title: 'Live waiting time', text: 'The queue learns each doctor’s real pace and updates patients when the wait changes by 10 minutes or more.' },
+  { ico: '🔐', title: 'DPDP-ready', text: 'Personal and health details are masked before any model call. Consent log, retention, export/erase and a full audit trail.' },
+  { ico: '🔑', title: 'BYOK or fully local', text: 'Use your own Claude, OpenAI, Gemini or Groq key, or open models on Ollama. Works with no model at all, for free.' },
+  { ico: '📊', title: 'Observable agents', text: 'Every agent step is logged with cost, latency and failure tags, so you can see what it did and why.' },
+];
+
+const plans = [
+  { name: 'Open source', price: 'Free', note: 'self-host', items: ['Everything, including add-ons', 'Your servers, your data', 'Docker Compose in one command'] },
+  { name: 'Free', price: '₹0', note: '/month', items: ['100 AI conversations/mo', '1 staff calendar', 'Unlimited with your own key'] },
+  { name: 'Starter', price: '₹999', note: '/month', items: ['1,000 AI conversations', '3 staff calendars', 'WhatsApp, Actions, queue'] },
+  { name: 'Growth', price: '₹3,999', note: '/month', items: ['5,000 AI conversations', '15 staff calendars', 'Medical records + AI findings'], featured: true },
+  { name: 'Institution', price: '₹9,999', note: '/month', items: ['20,000 AI conversations', '100 staff calendars', '30 seats, priority support'] },
+];
+
+function EarlyAccess() {
+  const [f, setF] = useState({ name: '', email: '', phone: '', orgName: '', institutionType: 'clinic', size: '', message: '' });
+  const [state, setState] = useState<'idle' | 'sent' | 'error'>('idle');
+  const [err, setErr] = useState('');
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await api('/api/public/leads', { body: { ...f, phone: f.phone || undefined, source: 'landing' } });
+      setState('sent');
+    } catch (x) {
+      setErr((x as Error).message);
+      setState('error');
+    }
+  };
+  if (state === 'sent') return <div className="card pad" style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>✅ Thanks! We'll reach out within two working days to set up your workspace.</div>;
+  return (
+    <form className="card pad stack" style={{ maxWidth: 640, margin: '0 auto' }} onSubmit={submit}>
+      <div className="grid2">
+        <input className="input" required placeholder="Your name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <input className="input" required type="email" placeholder="Work email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+        <input className="input" placeholder="Phone / WhatsApp (optional)" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+        <input className="input" placeholder="Institution name" value={f.orgName} onChange={(e) => setF({ ...f, orgName: e.target.value })} />
+        <select className="select" value={f.institutionType} onChange={(e) => setF({ ...f, institutionType: e.target.value })}>
+          <option value="clinic">Clinic</option><option value="hospital">Hospital</option><option value="diagnostics">Diagnostics / lab</option>
+          <option value="education">School / college / coaching</option><option value="services">Service business</option><option value="other">Other</option>
+        </select>
+        <select className="select" value={f.size} onChange={(e) => setF({ ...f, size: e.target.value })}>
+          <option value="">Size</option><option>1–5 staff</option><option>6–25 staff</option><option>26–100 staff</option><option>100+ staff</option>
+        </select>
+      </div>
+      <textarea className="textarea" rows={2} placeholder="What would you like the assistant to handle?" value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
+      {state === 'error' && <div className="error-box">{err}</div>}
+      <button className="btn primary lg">Request early access</button>
+    </form>
+  );
+}
 
 export function Landing() {
   const { me } = useSession();
@@ -23,10 +85,10 @@ export function Landing() {
           <img src="/icon.svg" alt="" /> Relay
         </Link>
         <div className="links">
-          <a href="#features" className="hide-sm">Features</a>
+          <a href="#agents" className="hide-sm">Agents</a>
           <a href="#pricing" className="hide-sm">Pricing</a>
           <a href="#self-host" className="hide-sm">Self-host</a>
-          <a href={REPO_URL} className="hide-sm">GitHub</a>
+          <a href="#early-access" className="hide-sm">Early access</a>
           {me && me.role !== 'viewer' ? (
             <Link className="btn primary" to="/app">Open {me.org.name}</Link>
           ) : (
@@ -39,86 +101,84 @@ export function Landing() {
       </nav>
 
       <header className="hero">
-        <span className="pill">Open-source AI helpdesk · WhatsApp + web chat · BYOK · Self-hostable</span>
+        <span className="pill">Open-source agentic front desk · WhatsApp + web chat + calls · BYOK · Self-hostable</span>
         <h1>
-          AI support for the <em>next billion</em> customers
+          An AI front desk for <em>every institution</em>
         </h1>
         <p className="lead">
-          Relay resolves support conversations on WhatsApp and web chat — in your customers' language — grounded in your help content, working alongside your team. The automated resolution of an enterprise AI agent, at a price small businesses can actually afford.
+          Relay’s team of agents answers questions, books appointments, keeps people updated on the wait, reads reports for your doctors and follows up after
+          the visit, in Tamil, Hindi, English and more. Your staff stay in control of every sensitive decision.
         </p>
         <div className="row wrap" style={{ justifyContent: 'center' }}>
-          <Link className="btn primary lg" to="/demo">Chat with the live demo →</Link>
-          <Link className="btn lg" to="/try">Explore the dashboard</Link>
+          <Link className="btn primary lg" to="/demo">Try the hospital demo →</Link>
+          <Link className="btn lg" to="/try">Explore the staff dashboard</Link>
         </div>
         <p className="small muted" style={{ textAlign: 'center' }}>
-          No sign-up for the demo. <Link to="/signup">Create a free workspace</Link> when you're ready to use your own help content.
+          No sign-up for the demo. <Link to="/signup">Create a free workspace</Link> or <a href="#early-access">request early access</a>.
         </p>
         <div className="card chat-mock" aria-label="Example conversation">
-          <div className="q">डिलीवरी में कितने दिन लगते हैं?</div>
+          <div className="q">அப்பாயின்ட்மென்ட் வேண்டும், சர்க்கரை நோய் மருத்துவர்</div>
           <div className="a">
-            मेट्रो शहरों में डिलीवरी 2-3 कार्यदिवस और बाकी भारत में 4-6 कार्यदिवस में होती है।
-            <div className="src">Source: सहायता केंद्र · confidence 98%</div>
+            Dr. Lakshmi Narayanan அவர்களுடன் கிடைக்கும் நேரங்கள்: 1. செவ்., 10:30 AM · 2. செவ்., 11:15 AM …
+            <div className="src">Booking agent · real free slots</div>
           </div>
-          <div className="q">Where is my order KC-1042?</div>
+          <div className="q">I have reached the hospital</div>
           <div className="a">
-            Order KC-1042 (Filter Coffee Kit) is out for delivery with Blue Dart, expected Friday.
-            <div className="src">Action: Order status · 120 ms</div>
+            You're checked in. Token 4, 2 ahead of you. Estimated wait: about 22 minutes.
+            <div className="src">Queue · updates as consultations finish</div>
           </div>
         </div>
       </header>
 
+      <section className="section">
+        <h2>Built for institutions that serve people in person</h2>
+        <p className="sub">One product, configured per institution. Hospitals and clinics get the full healthcare pack.</p>
+        <div className="grid4">
+          {institutions.map((f) => (
+            <div className="card feature" key={f.title}><div className="ico">{f.ico}</div><h3>{f.title}</h3><p>{f.text}</p></div>
+          ))}
+        </div>
+      </section>
+
+      <section className="section" id="agents">
+        <h2>A team of agents, each with one job</h2>
+        <p className="sub">They hand work to each other, and to your staff, whenever a decision needs a person.</p>
+        <div className="grid4">
+          {agents.map((a) => (
+            <div className="card feature" key={a.name}><div className="ico">{a.ico}</div><h3>{a.name}</h3><p>{a.text}</p></div>
+          ))}
+        </div>
+      </section>
+
       <section className="section" id="features">
-        <h2>A full AI support agent, built for WhatsApp-first businesses</h2>
-        <p className="sub">For D2C brands, clinics, coaching institutes and local services that support customers in Hindi, Kannada and Tamil — on a tight budget.</p>
+        <h2>Everything around the conversation</h2>
         <div className="grid3">
           {features.map((f) => (
-            <div className="card feature" key={f.title}>
-              <div className="ico">{f.ico}</div>
-              <h3>{f.title}</h3>
-              <p>{f.text}</p>
-            </div>
+            <div className="card feature" key={f.title}><div className="ico">{f.ico}</div><h3>{f.title}</h3><p>{f.text}</p></div>
           ))}
         </div>
       </section>
 
       <section className="section">
-        <h2>Priced for India, not Silicon Valley</h2>
-        <p className="sub">Most AI support agents bill in dollars per resolution — often around $0.99 each, plus seats and monthly minimums. Relay's overage is about ₹5 (~$0.06), and free if you self-host.</p>
-        <div className="card table-wrap" style={{ maxWidth: 760, margin: '0 auto' }}>
-          <table className="table compare">
-            <thead>
-              <tr><th></th><th>Relay</th><th>Typical per-resolution AI agent</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>Price per AI resolution</td><td className="yes">~₹5 (~$0.06)</td><td>$0.99</td></tr>
-              <tr><td>Monthly minimum</td><td className="yes">None (free tier)</td><td>Common (resolutions + seats)</td></tr>
-              <tr><td>Open source &amp; self-hostable</td><td className="yes">Yes (AGPL)</td><td className="no">Rarely</td></tr>
-              <tr><td>Bring your own LLM key / local models</td><td className="yes">Yes</td><td className="no">Rarely</td></tr>
-              <tr><td>INR billing with UPI Autopay</td><td className="yes">Yes</td><td className="no">Rarely</td></tr>
-              <tr><td>Works with no LLM at all</td><td className="yes">Yes (extractive mode)</td><td className="no">No</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <h2>Priced in rupees, per institution</h2>
+        <p className="sub">Many AI support agents bill in dollars per resolution, plus seats and minimums. Relay is a flat monthly plan in rupees, and free to self-host.</p>
       </section>
 
       <section className="section" id="pricing">
-        <h2>Simple pricing</h2>
-        <p className="sub">Start free. Upgrade when the AI is resolving real conversations.</p>
-        <div className="grid4">
-          {[
-            { name: 'Open Source', price: 'Free', note: 'self-host', items: ['Everything', 'Your servers, your data', 'Docker Compose in one command'] },
-            { name: 'Cloud Free', price: '₹0', note: '/month', items: ['1 site', '100 AI conversations/mo', 'Unlimited with your own key'] },
-            { name: 'Starter', price: '₹999', note: '/month', items: ['1,000 resolutions', 'Relay-provided model', 'WhatsApp channel', 'Actions'], featured: true },
-            { name: 'Growth', price: '₹3,999', note: '/month', items: ['5,000 resolutions', 'Actions & simulations', '5 seats', '~₹5 per extra resolution'] },
-          ].map((p) => (
+        <h2>Plans</h2>
+        <div className="grid5">
+          {plans.map((p) => (
             <div className={`card price ${p.featured ? 'featured' : ''}`} key={p.name}>
               <h3>{p.name}</h3>
-              <div>
-                <span className="amount">{p.price}</span> <span className="muted">{p.note}</span>
-              </div>
+              <div><span className="amount">{p.price}</span> <span className="muted">{p.note}</span></div>
               <ul>{p.items.map((i) => <li key={i}>{i}</li>)}</ul>
             </div>
           ))}
+        </div>
+        <h3 style={{ textAlign: 'center', marginTop: 24 }}>Add-ons</h3>
+        <div className="grid2" style={{ maxWidth: 760, margin: '0 auto' }}>
+          <div className="card pad stack"><strong>📞 AI telecalling · ₹1,999/month</strong><span className="small muted">Reminder, confirmation and follow-up calls in Indian languages; IVR for inbound calls with transfer to your front desk. Call minutes are billed by your own telephony account. 14-day free trial.</span></div>
+          <div className="card pad stack"><strong>📷 Camera check-in · ₹2,999/month per site</strong><span className="small muted">Opt-in face matching at reception on your own premises. Video and face data never leave the building. 14-day free trial.</span></div>
         </div>
       </section>
 
@@ -136,8 +196,14 @@ docker compose -f deploy/docker-compose.yml --profile ollama up -d`}</pre>
         </div>
       </section>
 
+      <section className="section" id="early-access">
+        <h2>Request early access</h2>
+        <p className="sub">We’ll set up your workspace, connect your WhatsApp number and load your FAQs with you.</p>
+        <EarlyAccess />
+      </section>
+
       <footer className="l-footer">
-        Relay is open source (AGPL-3.0; widget SDK MIT). Made for the next billion customers. ·{' '}
+        Relay is open source (AGPL-3.0; widget SDK MIT). ·{' '}
         <Link to="/demo">Live demo</Link> · <a href={REPO_URL}>GitHub</a>
       </footer>
     </div>

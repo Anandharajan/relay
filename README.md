@@ -6,20 +6,28 @@
 [![Live demo](https://img.shields.io/badge/demo-try%20it-8b4513)](#quick-start-local-no-docker-no-keys)
 
 
-**Fin for the next billion customers:** an open-source, BYOK AI agent that resolves support on WhatsApp and web chat in your customers' language, works alongside your team, and keeps its integrations working on its own.
+**An open-source, agentic AI front desk for institutions**: hospitals and clinics first, and equally schools, coaching centres, labs and service businesses. A team of agents answers on WhatsApp, web chat and phone calls in the visitor's language, books appointments with live waiting times, reads medical reports for doctors, follows up after the visit, and keeps your staff in control of every sensitive decision.
 
-- 🗣️ **Vernacular by default.** It detects Hindi, Kannada, Tamil, Telugu, Bengali and more, and answers from your help content with citations.
-- 💬 **WhatsApp + web chat.** The web widget is one `<script>` tag (~13 KB, Shadow DOM). WhatsApp uses the Cloud API.
-- 👥 **Multiplayer inbox.** AI and humans share one thread. Approve or edit AI drafts in one tap, take over or hand back, `@AI` inside internal notes, live presence.
-- 🧠 **Learns from your team.** Edited drafts and "Teach AI" replies become knowledge immediately.
-- ⚡ **Actions.** Order lookup, cancellation, refunds via your APIs, with OpenAPI import. Sensitive actions need a human to verify.
-- 🩹 **Self-healing Actions.** When your API changes shape, Relay detects the schema drift and proposes the fixed field mapping for one-click approval.
-- 🧪 **Simulations.** Batch-test real questions through the real pipeline and get a pass rate before going live.
-- 📈 **Analytics.** Resolution rate, deflection, CSAT, cost per resolution, languages, handoff reasons, unanswered questions.
-- 🔐 **DPDP-ready.** PII is redacted before any LLM call. Also included: consent log, retention purge, per-customer export/erase, and an audit trail.
-- 🔑 **BYOK or fully local.** Claude, OpenAI, Gemini, Groq, OpenRouter, Ollama or any OpenAI-compatible server. It also works **with no LLM at all**: the built-in extractive engine answers verbatim from your knowledge base, for free.
-- 💸 **INR billing.** Razorpay subscriptions with UPI Autopay (Relay Cloud mode).
+**Agents**
+- 💬 **Front desk.** Answers from your help content with citations, in Tamil, Hindi, Kannada, Telugu, English and more; not sure → hands over with a draft.
+- 🗓️ **Booking.** Offers real free slots, books, issues a token and a visit link (`/v/<code>`), answers "how long is the wait?", checks people in from QR/WhatsApp/desk.
+- 🛡️ **Safety** (healthcare). Detects emergencies in every supported language and replies with the emergency number; never diagnoses, doses or interprets reports; escalates instantly.
+- 📄 **Intake** (healthcare). Reads uploaded reports and prescriptions (PDF, DOCX, text) into structured results and medicines.
+- 🩺 **Findings** (healthcare). Flags critical, abnormal, worsening and overdue results for the doctor, suggests investigations, and drafts a patient message that **waits for doctor approval**.
+- 🔁 **Follow-up.** Post-visit check-ins (1 better / 2 same / 3 worse → alert), review reminders, overdue-test chasers, no-show recovery.
+- 📞 **Telecaller** (add-on). Reminder and follow-up calls with keypad answers via Twilio (or the built-in simulator), inbound IVR with transfer.
+- 📷 **Camera check-in** (add-on). Opt-in, on-premises face matching at reception ([apps/edge-checkin](apps/edge-checkin)); video and templates never leave the building.
 
+**Platform**
+- 🗓️ **Visits layer.** Staff calendars, slots, tokens, a live queue that learns each person's real pace, ETA updates when the wait moves by ≥10 minutes, doctor-approved prep instructions.
+- ✅ **Approvals.** Everything clinical goes through a doctor before a patient sees it.
+- 👥 **Multiplayer inbox**, 🧠 **learning from edits**, ⚡ **Actions** with 🩹 **self-healing** schema drift, 🧪 **simulations**, 📈 **analytics**.
+- 📊 **Agent observability.** Every agent decision is recorded with steps, cost, latency and procedural failure tags; the **platform admin console** (`/admin`, `PLATFORM_ADMIN_EMAILS` only) shows usage and cost forecasts, agent quality by complexity, failures, AI providers, workspaces, leads and the audit log.
+- 🔐 **DPDP-ready.** PII and (in healthcare) health terms are masked before any model call; consent log, retention purge, export/erase, audit trail.
+- 🔑 **BYOK or fully local.** Claude, OpenAI, Gemini, Groq, OpenRouter, Ollama or any OpenAI-compatible server, or **no model at all** (the extractive engine answers verbatim from your knowledge, for free).
+- 💸 **Plans in rupees** with Razorpay/UPI Autopay: Free, Starter, Growth, Institution, plus add-ons (telecalling, camera check-in) with 14-day trials. Self-hosted installs have everything unlocked.
+
+Deploying for a clinic (WhatsApp, BYOK, calls): [docs/CLINIC_DEPLOYMENT.md](docs/CLINIC_DEPLOYMENT.md).
 Product plan: [docs/PLAN.md](docs/PLAN.md). Launch kit: [launch/PRODUCT_HUNT.md](launch/PRODUCT_HUNT.md).
 
 ---
@@ -34,9 +42,9 @@ pnpm build          # builds widget.js + dashboard
 pnpm start          # http://localhost:8787
 ```
 
-The first boot creates an embedded Postgres (PGlite + pgvector) in `apps/server/data` and seeds the demo workspace **Kaapi & Co.**, a fictional Bengaluru coffee store:
+The first boot creates an embedded Postgres (PGlite + pgvector) in `apps/server/data` and seeds the demo workspace **Poonthalir Hospital**, a fictional Chennai hospital with synthetic doctors, patients and reports:
 
-- `/` is the landing page, `/demo` is the demo store with the live widget, and `/app` is the dashboard.
+- `/` is the landing page, `/demo` is the hospital website with the live assistant, `/try` opens the staff dashboard read-only, `/app` is the dashboard and `/admin` the platform console.
 - Demo login: `DEMO_EMAIL` / `DEMO_PASSWORD` from [.env.example](.env.example). These are local test credentials. Change or disable them (`DEMO_SEED=false`) in production.
 
 For development with hot reload: `pnpm dev`. The API runs on :8787 and Vite on :5173, which proxies the API.

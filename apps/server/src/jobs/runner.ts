@@ -1,5 +1,6 @@
 import { ctx } from '../ctx.ts';
 import { uuid } from '../lib/crypto.ts';
+import { recordRun } from '../services/agents.ts';
 
 /**
  * Durable job queue on Postgres (the self-hosted stand-in for Cloudflare Workflows / Temporal).
@@ -65,6 +66,7 @@ async function execute(job: { id: string; type: string; payload: any; attempts: 
   } catch (e) {
     const msg = (e as Error).message;
     console.error(`[jobs] ${job.type} failed (attempt ${job.attempts}):`, msg);
+    void recordRun({ orgId: job.payload?.orgId ?? null, agent: 'jobs', trigger: job.type, status: 'failed', outcome: msg.slice(0, 200), tags: [`job.${job.type}.failed`, ...(job.attempts >= 3 ? ['job.gave_up'] : ['job.retrying'])] });
     const retry = job.attempts < 3;
     await ctx.db.query(
       `update jobs set status = $2, last_error = $3, updated_at = now(), run_at = now() + ($4 || ' seconds')::interval where id = $1`,

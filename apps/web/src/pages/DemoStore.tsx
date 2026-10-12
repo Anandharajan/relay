@@ -2,23 +2,27 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 
-const products = [
-  { name: 'Monsoon Malabar', price: 449, art: '🌧️', bg: '#e8dccb', note: 'Earthy, low acidity · 250g' },
-  { name: 'Chikmagalur Estate', price: 799, art: '⛰️', bg: '#dfe7d4', note: 'Chocolate & citrus · 500g' },
-  { name: 'Filter Coffee Kit', price: 999, art: '☕', bg: '#f0d9c4', note: '80:20 chicory blend + steel filter' },
-  { name: 'Cold Brew Bags', price: 349, art: '🧊', bg: '#d8e4ec', note: '10 bags · steep overnight' },
+const departments = [
+  { ta: 'பொது மருத்துவம்', en: 'General Medicine', icon: '🩺', doc: 'Dr. Meenakshi Sundaram' },
+  { ta: 'இதய நலம்', en: 'Cardiology', icon: '❤️', doc: 'Dr. Arjun Ramanathan' },
+  { ta: 'நீரிழிவு & ஹார்மோன்', en: 'Diabetology & Endocrinology', icon: '🩸', doc: 'Dr. Lakshmi Narayanan' },
+  { ta: 'குழந்தைகள் நலம்', en: 'Paediatrics', icon: '🧒', doc: 'Dr. Kavitha Selvaraj' },
+  { ta: 'எலும்பு & மூட்டு', en: 'Orthopaedics', icon: '🦴', doc: 'Dr. Farhan Ali' },
+  { ta: 'மகப்பேறு & பெண்கள் நலம்', en: 'Obstetrics & Gynaecology', icon: '🤰', doc: 'Dr. Narmadha Vasu' },
+  { ta: 'மயக்கவியல்', en: 'Anaesthesiology', icon: '💉', doc: 'Dr. Kannan' },
 ];
 
 const tries = [
-  'How long does delivery take?',
-  'डिलीवरी में कितने दिन लगते हैं?',
-  'ಉಚಿತ ಶಿಪ್ಪಿಂಗ್ ಇದೆಯೇ?',
-  'Where is my order KC-1042?',
-  'Cancel my order KC-2001',
-  'Do you sell green tea?',
+  'அப்பாயின்ட்மென்ட் வேண்டும், சர்க்கரை நோய் மருத்துவர்',
+  'வெளிநோயாளர் பிரிவு நேரம் என்ன?',
+  'Do you accept health insurance?',
+  'Is my report LAB-2041 ready?',
+  'Can I take paracetamol with my BP tablets?',
+  'I have reached the hospital',
+  'परामर्श शुल्क कितना है?',
 ];
 
-/** A fictional D2C store with the Relay widget installed, for the launch demo. */
+/** A fictional Chennai hospital website with the Relay assistant installed, for the live demo. */
 export function DemoStore() {
   const [siteKey, setSiteKey] = useState<string | null | undefined>(undefined);
 
@@ -43,46 +47,62 @@ export function DemoStore() {
   }, [siteKey]);
 
   return (
-    <div className="store">
-      <header>
-        <div className="wrap row between" style={{ padding: '16px 20px' }}>
-          <strong style={{ fontSize: 20, fontFamily: 'Georgia, serif' }}>Kaapi &amp; Co.</strong>
-          <span className="small" style={{ opacity: 0.85 }}>Fresh-roasted in Bengaluru · Free shipping over ₹599</span>
+    <div className="hospital">
+      <div className="strip">🚑 அவசர சிகிச்சை 24 மணி நேரமும் · 24×7 Emergency: call 108</div>
+      <header className="top">
+        <div className="wrap row between wrap" style={{ padding: '14px 20px', gap: 8 }}>
+          <div>
+            <strong style={{ fontSize: 19 }}>பூந்தளிர் மருத்துவமனை</strong>
+            <div className="small" style={{ opacity: 0.9 }}>Poonthalir Hospital · Anna Nagar, Chennai</div>
+          </div>
+          <span className="small" style={{ opacity: 0.9 }}>OPD திங்கள்–சனி 8AM–8PM · ஞாயிறு 9AM–1PM</span>
         </div>
       </header>
-      <main className="wrap stack lg" style={{ padding: '28px 20px 120px' }}>
+      <main className="wrap stack lg" style={{ padding: '22px 20px 120px' }}>
+        <div className="ta-banner">
+          <h1>உங்கள் நலமே எங்கள் முதல் கடமை</h1>
+          <p>வாட்ஸ்அப்பில் முன்பதிவு · நேரடி காத்திருப்பு நேரம் · உங்கள் மொழியில் உதவி</p>
+          <p className="small" style={{ opacity: 0.9 }}>Book on WhatsApp · live waiting time · help in Tamil, English and Hindi</p>
+        </div>
+
         <div className="try stack">
           <div className="row between wrap">
-            <strong>👋 This is a demo store with the Relay widget installed.</strong>
+            <strong>👋 இது ஒரு டெமோ மருத்துவமனை இணையதளம் · This is a demo hospital website with the Relay assistant.</strong>
             <Link to="/" className="small">← Back to Relay</Link>
           </div>
           <p className="small">
-            Open the chat (bottom-right) and try any of these — it answers in your language, looks up orders through an Action, and hands off to a human when it doesn't know.
+            Open the chat (bottom-right) and try these. It answers from the hospital's help desk with citations, books appointments with a token and a live
+            visit page, checks lab report status through an Action, refuses medical advice, and escalates emergencies.
           </p>
-          <p className="small">Demo chats are public and visible to other visitors. Please don't enter personal details.</p>
+          <p className="small"><strong>Demo chats are public and visible to other visitors. Please don't enter real names, phone numbers or health details.</strong></p>
           <div className="row wrap" style={{ gap: 6 }}>
-            {tries.map((t) => (
-              <code key={t}>{t}</code>
-            ))}
+            {tries.map((t) => <code key={t}>{t}</code>)}
           </div>
-          <p className="small" style={{ color: '#7a5a3c' }}>
-            Order IDs like <code>KC-1001</code> to <code>KC-9999</code> work. Then see the other side:{' '}
-            <a href="/try" target="_blank" rel="noreferrer"><strong>open the team inbox ↗</strong></a> — your chat shows up there, read-only, no sign-up.
+          <p className="small">
+            Lab IDs like <code>LAB-2041</code> work. Then see the hospital's side:{' '}
+            <a href="/try" target="_blank" rel="noreferrer"><strong>open the staff dashboard ↗</strong></a> (live queue, doctor brief, AI findings, approvals). Read-only, no sign-up.
           </p>
           {siteKey === null && <div className="error-box">The demo workspace isn't seeded on this server (set DEMO_SEED=true).</div>}
         </div>
-        <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 26 }}>Small-batch coffee from the Western Ghats</h2>
-        <div className="products">
-          {products.map((p) => (
-            <div className="product" key={p.name}>
-              <div className="art" style={{ background: p.bg }}>{p.art}</div>
-              <strong>{p.name}</strong>
-              <span className="small" style={{ color: '#7a5a3c' }}>{p.note}</span>
-              <span style={{ fontWeight: 700 }}>₹{p.price}</span>
+
+        <h2>எங்கள் துறைகள் · Departments</h2>
+        <div className="depts">
+          {departments.map((d) => (
+            <div className="dept" key={d.en}>
+              <span style={{ fontSize: 26 }}>{d.icon}</span>
+              <strong>{d.ta}</strong>
+              <span className="small muted">{d.en}</span>
+              <span className="small">{d.doc}</span>
             </div>
           ))}
         </div>
-        <p className="small" style={{ color: '#7a5a3c' }}>Kaapi &amp; Co. is a fictional store created to demonstrate Relay. No real orders are placed.</p>
+
+        <div className="grid3">
+          <div className="dept"><strong>🧪 பரிசோதனைக் கூடம் · Lab</strong><span className="small">காலை 7 – இரவு 9 · வீட்டிலேயே மாதிரி சேகரிப்பு ₹150</span></div>
+          <div className="dept"><strong>💳 காப்பீடு · Insurance</strong><span className="small">பணமில்லா சிகிச்சை · Cashless with major insurers and TPAs</span></div>
+          <div className="dept"><strong>💊 மருந்தகம் · Pharmacy</strong><span className="small">24 மணி நேரமும் · Open 24×7</span></div>
+        </div>
+        <p className="small muted">Poonthalir Hospital is fictional, created to demonstrate Relay. Doctors, patients, phone numbers and reports in this demo are synthetic. No real appointments are made.</p>
       </main>
     </div>
   );

@@ -25,3 +25,5 @@ services:
         value: "true"
       - key: DEMO_PASSWORD
         generateValue: true
+      - key: PLATFORM_ADMIN_EMAILS
+        sync: false        # your email(s): only these accounts can open /admin

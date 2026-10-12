@@ -4,7 +4,7 @@ import { config } from '../config.ts';
 import { ctx } from '../ctx.ts';
 import { hmacHex, safeEqual } from '../lib/crypto.ts';
 import { body, fail, requireOrg, requireRole, requireUser, type AppEnv } from '../http.ts';
-import { audit, plans } from '../services/orgs.ts';
+import { addonCatalog, addonStatus, audit, plans, TRIAL_DAYS, type AddonKey } from '../services/orgs.ts';
 
 export const billing = new Hono<AppEnv>();
 billing.use(requireUser, requireOrg);
@@ -27,6 +27,8 @@ billing.get('/', async (c) => {
     keyId: config.razorpay.keyId || null,
     plan: org.plan,
     plans,
+    addons: await addonStatus(org),
+    trialDays: TRIAL_DAYS,
     subscription: sub ?? null,
     usage,
   });
@@ -36,7 +38,7 @@ billing.get('/', async (c) => {
 billing.post('/subscribe', requireRole('owner'), async (c) => {
   const org = c.get('org');
   const user = c.get('user');
-  const b = await body(c, z.object({ plan: z.enum(['starter', 'growth']) }));
+  const b = await body(c, z.object({ plan: z.enum(['starter', 'growth', 'institution']) }));
   if (!config.razorpay.keyId || !config.razorpay.keySecret) fail(400, 'Billing is not configured on this server');
   const planId = config.razorpay.plans[b.plan];
   if (!planId) fail(400, `Razorpay plan id for "${b.plan}" is not configured (RAZORPAY_PLAN_${b.plan.toUpperCase()})`);
@@ -56,6 +58,43 @@ billing.post('/subscribe', requireRole('owner'), async (c) => {
   return c.json({ subscriptionId: data.id, shortUrl: data.short_url, keyId: config.razorpay.keyId, prefill: { email: user.email, name: user.name }, orgName: org.name });
 });
 
+/** Free trial of a paid add-on (once per workspace). */
+billing.post('/addons/:addon/trial', requireRole('owner'), async (c) => {
+  const org = c.get('org');
+  const addon = c.req.param('addon') as AddonKey;
+  if (!(addon in addonCatalog)) fail(404, 'Unknown add-on');
+  if (config.mode !== 'cloud') return c.json({ ok: true, status: 'included' });
+  const existing = await ctx.db.one('select 1 from addons where org_id = $1 and addon = $2', [org.id, addon]);
+  if (existing) fail(409, 'The free trial for this add-on has already been used. Subscribe to keep using it.');
+  await ctx.db.query(`insert into addons (org_id, addon, status, expires_at) values ($1, $2, 'trial', now() + ($3 || ' days')::interval)`, [org.id, addon, String(TRIAL_DAYS)]);
+  await audit(org.id, c.get('user').id, 'billing.addon_trial', addon, {});
+  return c.json({ ok: true, status: 'trial' });
+});
+
+/** Subscribe to an add-on through Razorpay (UPI Autopay supported). */
+billing.post('/addons/:addon/subscribe', requireRole('owner'), async (c) => {
+  const org = c.get('org');
+  const user = c.get('user');
+  const addon = c.req.param('addon') as AddonKey;
+  if (!(addon in addonCatalog)) fail(404, 'Unknown add-on');
+  if (!config.razorpay.keyId || !config.razorpay.keySecret) fail(400, 'Billing is not configured on this server');
+  const planId = config.razorpay.plans[addon];
+  if (!planId) fail(400, `Razorpay plan id for the ${addon} add-on is not configured`);
+  const res = await fetch('https://api.razorpay.com/v1/subscriptions', {
+    method: 'POST',
+    headers: { authorization: razorpayAuth(), 'content-type': 'application/json' },
+    body: JSON.stringify({ plan_id: planId, total_count: 120, customer_notify: 1, notes: { org_id: org.id, addon } }),
+  });
+  const data = (await res.json()) as any;
+  if (!res.ok) fail(400, data?.error?.description ?? 'Razorpay error');
+  await ctx.db.query(
+    `insert into addons (org_id, addon, status, external_id) values ($1, $2, 'created', $3) on conflict (org_id, addon) do update set external_id = excluded.external_id, updated_at = now()`,
+    [org.id, addon, data.id],
+  );
+  await audit(org.id, user.id, 'billing.addon_subscription_created', data.id, { addon });
+  return c.json({ subscriptionId: data.id, shortUrl: data.short_url, keyId: config.razorpay.keyId, prefill: { email: user.email, name: user.name }, orgName: org.name });
+});
+
 /** Razorpay webhook: signature = HMAC-SHA256(raw body, webhook secret). */
 export const razorpayWebhook = new Hono();
 razorpayWebhook.post('/', async (c) => {
@@ -65,6 +104,23 @@ razorpayWebhook.post('/', async (c) => {
   const evt = JSON.parse(raw) as any;
   const sub = evt.payload?.subscription?.entity;
   if (!sub) return c.json({ ok: true });
+  const activeEvt = ['subscription.activated', 'subscription.charged', 'subscription.resumed'].includes(evt.event);
+  const endedEvt = ['subscription.cancelled', 'subscription.completed', 'subscription.halted', 'subscription.paused'].includes(evt.event);
+  // Add-on subscriptions carry notes.addon and update entitlements only.
+  const addonRow = await ctx.db.one<{ org_id: string; addon: string }>('select org_id, addon from addons where external_id = $1', [sub.id]);
+  if (addonRow || sub.notes?.addon) {
+    const orgId = addonRow?.org_id ?? sub.notes?.org_id;
+    const addon = addonRow?.addon ?? sub.notes?.addon;
+    if (orgId && addon && (activeEvt || endedEvt)) {
+      await ctx.db.query(
+        `insert into addons (org_id, addon, status, expires_at, external_id) values ($1, $2, $3, $4, $5)
+         on conflict (org_id, addon) do update set status = excluded.status, expires_at = excluded.expires_at, external_id = excluded.external_id, updated_at = now()`,
+        [orgId, addon, activeEvt ? 'active' : 'cancelled', sub.current_end ? new Date((sub.current_end + 3 * 86400) * 1000) : null, sub.id],
+      );
+      await audit(orgId, 'razorpay', `billing.addon.${evt.event}`, sub.id, { addon });
+    }
+    return c.json({ ok: true });
+  }
   const row = await ctx.db.one<{ org_id: string; plan: string }>('select org_id, plan from subscriptions where external_id = $1', [sub.id]);
   const orgId = row?.org_id ?? sub.notes?.org_id;
   if (!orgId) return c.json({ ok: true });

@@ -23,6 +23,10 @@ const settingsSchema = z
     idleResolveMinutes: z.number().int().min(5).max(1440),
     retentionDays: z.number().int().min(1).max(3650),
     consentText: z.string().max(400),
+    vertical: z.enum(['general', 'healthcare', 'education', 'services']),
+    emergencyNumber: z.string().max(20),
+    utcOffsetMin: z.number().int().min(-720).max(840),
+    recordsUseModel: z.boolean(),
   })
   .partial();
 
@@ -145,9 +149,9 @@ workspace.post('/model/test', requireRole('admin'), async (c) => {
 // ---------- Channels ----------
 workspace.put('/channels/whatsapp', requireRole('admin'), async (c) => {
   const org = c.get('org');
-  const b = await body(c, z.object({ phoneNumberId: z.string().max(64), accessToken: z.string().max(1000).optional(), enabled: z.boolean() }));
+  const b = await body(c, z.object({ phoneNumberId: z.string().max(64), accessToken: z.string().max(1000).optional(), enabled: z.boolean(), template: z.string().max(80).optional(), templateLang: z.string().max(10).optional(), templateLangTa: z.string().max(10).optional() }));
   const verifyToken = org.settings.whatsapp?.verifyToken ?? token(16);
-  const settings = { ...org.settings, whatsapp: { phoneNumberId: b.phoneNumberId, verifyToken, enabled: b.enabled } };
+  const settings = { ...org.settings, whatsapp: { phoneNumberId: b.phoneNumberId, verifyToken, enabled: b.enabled, template: b.template || 'relay_update', templateLang: b.templateLang || 'en', templateLangTa: b.templateLangTa || 'ta' } };
   const secrets = { ...org.secrets };
   if (b.accessToken) secrets.whatsappToken = encrypt(b.accessToken);
   await ctx.db.query('update orgs set settings = $2::jsonb, secrets = $3::jsonb where id = $1', [org.id, settings, secrets]);

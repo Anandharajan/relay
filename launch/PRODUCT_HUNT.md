@@ -26,10 +26,10 @@ Renaming is a find-and-replace on "Relay" in `apps/web`, the widget footer text,
 **Tagline (58/60 chars):**
 > Open-source AI support agent for WhatsApp, in any language
 
-Alternates: "Open-source Fin alternative for WhatsApp-first businesses" (57) · "AI support that speaks Hindi, Kannada & Tamil. Open source." (59)
+Alternates: "Open-source AI front desk for clinics and institutions" (54) · "AI support that speaks Hindi, Kannada & Tamil. Open source." (59)
 
 **Description (≤ 260 chars):**
-> Relay answers customer questions on WhatsApp and web chat in Hindi, Kannada, Tamil and English, cites your help docs, looks up orders, and hands off to your team when unsure. Open source, BYOK, self-hostable, and about 16× cheaper than Fin per resolution.
+> Relay answers customer questions on WhatsApp and web chat in Hindi, Kannada, Tamil and English, cites your help docs, looks up orders, and hands off to your team when unsure. Open source, BYOK, self-hostable, and about 16× cheaper than per-resolution AI agents per resolution.
 
 **Topics:** Customer Support · Artificial Intelligence · Open Source · Developer Tools
 
@@ -49,7 +49,7 @@ Alternates: "Open-source Fin alternative for WhatsApp-first businesses" (57) · 
 >
 > I built Relay because **AI support is priced for Silicon Valley, but most of the world's customer support happens on WhatsApp, in Hindi, Kannada or Tamil, for businesses that count every rupee.**
 >
-> Fin is great, but at $0.99 per resolution with a 50-resolution monthly minimum plus seats, it's out of reach for 90% of the D2C brands, clinics and coaching institutes I know in India.
+> Enterprise AI support agents are great, but at around $0.99 per resolution with a 50-resolution monthly minimum plus seats, it's out of reach for 90% of the D2C brands, clinics and coaching institutes I know in India.
 >
 > **What Relay does:**
 > 🗣️ Answers in the customer's language, from your help docs, with citations
@@ -77,7 +77,7 @@ Captured from the running product into `launch/gallery/`. To regenerate, see "Ca
 1. `1-demo-widget.png`: the demo store with the widget answering in Hindi and Kannada, with citations.
 2. `2-inbox.png`: the multiplayer inbox with an AI draft awaiting approval and a sensitive-action verification card.
 3. `3-simulation.png`: simulation results with the pass rate.
-4. `4-analytics.png`: resolution rate, CSAT, cost per resolution, and "vs Fin pricing".
+4. `4-analytics.png`: resolution rate, CSAT, cost per resolution, and "vs per-resolution pricing".
 5. `5-landing.png`: the hero and the price comparison.
 
 Thumbnail: `apps/web/public/icon-512.png` (240×240 minimum; animated GIF optional).
@@ -91,7 +91,7 @@ Thumbnail: `apps/web/public/icon-512.png` (240×240 minimum; animated GIF option
 | 25–38s | "Where is my order KC-1042?" → order status | "It calls your order API." |
 | 38–52s | "Cancel my order" → inbox → Approve & run | "Refunds and cancellations wait for a human. One tap to verify." |
 | 52–65s | Low-confidence draft → edit → send → ask again → AI answers | "When it's unsure, it asks your team, and learns from every edit." |
-| 65–80s | Simulations pass rate → Analytics vs Fin | "Test before you go live. Roughly 16× cheaper than Fin, or free if you self-host." |
+| 65–80s | Simulations pass rate → Analytics vs per-resolution AI agents | "Test before you go live. A flat rupee plan, or free if you self-host." |
 | 80–90s | Terminal: `docker compose up` + GitHub | "Open source. Bring your own model. Link below." |
 
 Record with OBS (open source) at 1920×1080 and upload to YouTube or Loom.

@@ -1,3 +1,4 @@
+import { describeAnswer, recordRun } from './agents.ts';
 import { ctx } from '../ctx.ts';
 import { uuid } from '../lib/crypto.ts';
 import { publish } from '../lib/events.ts';
@@ -74,7 +75,10 @@ export async function addMessage(
   publish(`org:${conv.org_id}`, 'message.created', msg);
   // Deliver agent/AI replies on non-web channels (WhatsApp, ...).
   if ((role === 'ai' || role === 'human') && conv.channel !== 'web') {
-    sendChannelMessage(conv, content).catch((e) => console.error('[channel] send failed', e));
+    sendChannelMessage(conv, content).catch((e) => {
+      console.error('[channel] send failed', e);
+      void recordRun({ orgId: conv.org_id, agent: 'channel', trigger: 'send', conversationId: conv.id, status: 'failed', outcome: String((e as Error).message).slice(0, 200), tags: [`channel.${conv.channel}.send_failed`] });
+    });
   }
   return msg;
 }
@@ -134,7 +138,10 @@ export async function handleCustomerMessage(org: Org, conv: Conversation, conten
 export async function runAi(org: Org, conv: Conversation, content: string): Promise<AnswerOutput> {
   publish(`conv:${conv.id}`, 'typing', { typing: true });
   const turns = await history(conv.id);
-  const out = await answer({ org, question: content, history: turns.slice(0, -1), meta: conv.meta });
+  const started = Date.now();
+  const out = await answer({ org, question: content, history: turns.slice(0, -1), meta: conv.meta, conversationId: conv.id });
+  const d = describeAnswer(out, turns.length);
+  void recordRun({ orgId: org.id, trigger: `message:${conv.channel}`, conversationId: conv.id, ...d, inputTokens: Math.round(out.tokens * 0.8), outputTokens: Math.round(out.tokens * 0.2), costInr: out.costInr, latencyMs: Date.now() - started });
   publish(`conv:${conv.id}`, 'typing', { typing: false });
 
   if (out.lang !== conv.lang) await ctx.db.query('update conversations set lang = $2 where id = $1', [conv.id, out.lang]);
@@ -155,7 +162,8 @@ export async function runAi(org: Org, conv: Conversation, content: string): Prom
     if (out.suggestion) await createDraft(conv, content, out.suggestion.text, out.suggestion.citations, out.confidence);
     await addMessage(conv, 'system', `Escalated to the team: ${out.reason ?? 'needs a human'}`);
     await setStatus(conv, 'escalated');
-    publish(`org:${org.id}`, 'attention', { conversationId: conv.id, reason: out.reason });
+    publish(`org:${org.id}`, 'attention', { conversationId: conv.id, reason: out.reason, urgent: out.reason === 'emergency' || out.reason === 'followup_worse' });
+    if (out.reason === 'emergency' || out.reason === 'followup_worse') await patchMeta(conv, { priority: 'urgent' });
   } else if (out.kind === 'action_pending' && out.action) {
     const runId = uuid();
     await ctx.db.query(`insert into action_runs (id, org_id, action_id, conversation_id, params, status) values ($1, $2, $3, $4, $5::jsonb, 'pending_approval')`, [

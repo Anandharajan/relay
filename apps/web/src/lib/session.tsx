@@ -21,10 +21,16 @@ export interface Me {
       retentionDays: number;
       consentText: string;
       whatsapp?: { phoneNumberId?: string; verifyToken?: string; enabled?: boolean };
+      vertical: 'general' | 'healthcare' | 'education' | 'services';
+      emergencyNumber: string;
+      utcOffsetMin: number;
+      recordsUseModel?: boolean;
+      voice?: { provider?: string; from?: string; accountSid?: string; transferTo?: string };
     };
   };
   orgs: { id: string; name: string; role: string }[];
   server: { mode: 'cloud' | 'selfhost'; publicUrl: string; billing: boolean };
+  isPlatformAdmin?: boolean;
 }
 
 const Ctx = createContext<{ me: Me | null; loading: boolean; refresh: () => Promise<void> }>({ me: null, loading: true, refresh: async () => {} });

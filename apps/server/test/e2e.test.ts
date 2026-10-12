@@ -15,6 +15,7 @@ process.env.DATABASE_URL = '';
 process.env.LLM_PROVIDER = 'extractive';
 process.env.DEMO_SEED = 'true';
 process.env.RELAY_SECRET = 'test-secret-test-secret-test-secret';
+process.env.PLATFORM_ADMIN_EMAILS = 'demo@relay.local';
 
 const base = `http://localhost:${PORT}`;
 let server: { close: () => void; address: () => AddressInfo | string | null };
@@ -62,6 +63,8 @@ before(async () => {
   await initBus(ctx.db);
   registerJob('ingest', ingestSource);
   registerJob('simulate', runSimulation);
+  const { processRecord } = await import('../src/services/records.ts');
+  registerJob('record_process', processRecord);
   await startJobs([]);
   server = serve({ fetch: buildApp().fetch, port: PORT }) as any;
   await seedDemo();
@@ -81,16 +84,19 @@ test('rejects unauthenticated and CSRF-less requests', async () => {
 });
 
 test('signup creates an isolated workspace', async () => {
-  const r = await api('POST', '/api/auth/signup', { email: 'owner@test.in', password: 'password123', name: 'Asha', orgName: 'Test Store' });
+  const r = await api('POST', '/api/auth/signup', { email: 'owner@test.in', password: 'password123', name: 'Asha', orgName: 'Test Clinic' });
   assert.equal(r.status, 200);
   const me = await api('GET', '/api/me');
-  assert.equal(me.data.org.name, 'Test Store');
+  assert.equal(me.data.org.name, 'Test Clinic');
   assert.equal(me.data.role, 'owner');
-  // Tenant isolation: the new workspace sees none of the demo store's knowledge or conversations.
+  // Tenant isolation: the new workspace sees none of the demo hospital's knowledge, patients or conversations.
   assert.equal((await api('GET', '/api/knowledge')).data.length, 0);
   assert.equal((await api('GET', '/api/inbox/conversations?view=all')).data.conversations.length, 0);
-  const ask = await api('POST', '/api/knowledge/ask', { question: 'How long does delivery take?' });
+  assert.equal((await api('GET', '/api/visits/clients')).data.length, 0);
+  const ask = await api('POST', '/api/knowledge/ask', { question: 'What are the OPD timings?' });
   assert.equal(ask.data.kind, 'handoff');
+  // Workspace owners are not platform admins.
+  assert.equal((await api('GET', '/api/admin/overview')).status, 404);
   cookie = '';
 });
 
@@ -105,32 +111,54 @@ test('demo owner signs in and ingests new FAQ knowledge', async () => {
   assert.equal(ask.data.citations[0].title, 'Gift cards');
 });
 
-test('answers in Hindi and Kannada from vernacular knowledge', async () => {
-  const hi = await api('POST', '/api/knowledge/ask', { question: 'रिफंड में कितना समय लगता है?' });
+test('answers in Tamil and Hindi from vernacular knowledge', async () => {
+  const ta = await api('POST', '/api/knowledge/ask', { question: 'ஆலோசனைக் கட்டணம் எவ்வளவு?' });
+  assert.equal(ta.data.lang, 'ta');
+  assert.equal(ta.data.kind, 'answer');
+  assert.match(ta.data.text, /₹500/);
+  assert.ok(ta.data.citations.length);
+  const lab = await api('POST', '/api/knowledge/ask', { question: 'பரிசோதனைக் கூட நேரம் என்ன?' });
+  assert.equal(lab.data.kind, 'answer');
+  assert.match(lab.data.text, /காலை 7/);
+  const hi = await api('POST', '/api/knowledge/ask', { question: 'परामर्श शुल्क कितना है?' });
   assert.equal(hi.data.lang, 'hi');
   assert.equal(hi.data.kind, 'answer');
-  assert.match(hi.data.text, /5-7 कार्यदिवस/);
-  const kn = await api('POST', '/api/knowledge/ask', { question: 'ಕ್ಯಾಶ್ ಆನ್ ಡೆಲಿವರಿ ಲಭ್ಯವಿದೆಯೇ?' });
-  assert.equal(kn.data.lang, 'kn');
-  assert.equal(kn.data.kind, 'answer');
-  assert.match(kn.data.text, /₹2,000/);
-  const returns = await api('POST', '/api/knowledge/ask', { question: 'ನಿಮ್ಮ ರಿಟರ್ನ್ ನೀತಿ ಏನು?' });
-  assert.equal(returns.data.lang, 'kn');
-  assert.equal(returns.data.kind, 'answer');
-  assert.match(returns.data.text, /7 ದಿನಗಳೊಳಗೆ/);
-  assert.ok(returns.data.citations.length);
+  assert.match(hi.data.text, /₹500/);
 });
 
 test('PII never reaches the model input', async () => {
-  const r = await api('POST', '/api/knowledge/ask', { question: 'my number is 9876543210, what is your return policy?' });
+  const r = await api('POST', '/api/knowledge/ask', { question: 'my number is 9876543210, what are the visiting hours?' });
   assert.ok(!r.data.redactedQuestion.includes('9876543210'));
   assert.match(r.data.redactedQuestion, /\[PHONE_1\]/);
 });
 
-test('keyword-only order question without an ID is answered from knowledge', async () => {
-  const r = await api('POST', '/api/knowledge/ask', { question: 'How can I track my order?' });
+test('keyword-only lab question without an ID is answered from knowledge', async () => {
+  const r = await api('POST', '/api/knowledge/ask', { question: 'When will my lab report be ready?' });
   assert.equal(r.data.kind, 'answer');
-  assert.match(r.data.text, /tracking link/);
+  assert.match(r.data.text, /same evening/);
+});
+
+test('safety: emergencies and medical-advice questions are escalated, never answered', async () => {
+  const pub = await api('GET', '/api/public/config');
+  const s = await api('POST', '/widget/session', { siteKey: pub.data.demoSiteKey });
+  const W = { authorization: `Bearer ${s.data.token}` };
+  const em = await api('POST', '/widget/messages', { content: 'என் அப்பாவுக்கு நெஞ்சு வலி, மூச்சு திணறல்' }, W);
+  const t1 = await waitFor(async () => {
+    const t = (await api('GET', '/widget/conversation', undefined, W)).data;
+    return t.messages.find((m: any) => m.role === 'ai') && t;
+  }, 'emergency reply');
+  assert.match(t1.messages.at(-1).content, /108/);
+  assert.equal(t1.conversation.status, 'escalated');
+  assert.ok(em.data.conversationId);
+  const s2 = await api('POST', '/widget/session', { siteKey: pub.data.demoSiteKey });
+  const W2 = { authorization: `Bearer ${s2.data.token}` };
+  await api('POST', '/widget/messages', { content: 'Can I take paracetamol with metformin?' }, W2);
+  const t2 = await waitFor(async () => {
+    const t = (await api('GET', '/widget/conversation', undefined, W2)).data;
+    return t.messages.find((m: any) => m.role === 'ai') && t;
+  }, 'medical advice reply');
+  assert.match(t2.messages.at(-1).content, /can't give medical advice/);
+  assert.equal(t2.conversation.status, 'escalated');
 });
 
 test('widget conversation: answer, action, sensitive action approval, resolution', async () => {
@@ -141,16 +169,16 @@ test('widget conversation: answer, action, sensitive action approval, resolution
     fetch(`${base}/widget/messages`, { method: 'POST', headers: { 'content-type': 'application/json', ...W }, body: JSON.stringify({ content, conversationId }) }).then((r) => r.json());
   const thread = () => fetch(`${base}/widget/conversation`, { headers: W }).then((r) => r.json());
 
-  const first = await send('Is the coffee fresh?');
+  const first = await send('Is parking available?');
   const convId = first.conversationId;
   await waitFor(async () => (await thread()).messages.find((m: any) => m.role === 'ai'), 'AI answer');
-  assert.match((await thread()).messages[1].content, /roasted to order/);
+  assert.match((await thread()).messages[1].content, /basement/);
 
-  await send('Where is my order KC-1042?', convId);
-  const orderReply = await waitFor(async () => (await thread()).messages.filter((m: any) => m.role === 'ai')[1], 'order action');
-  assert.match(orderReply.content, /KC-1042 .*Courier/);
+  await send('Is my report LAB-2042 ready?', convId);
+  const labReply = await waitFor(async () => (await thread()).messages.filter((m: any) => m.role === 'ai')[1], 'lab action');
+  assert.match(labReply.content, /LAB-2042/);
 
-  await send('Cancel my order KC-3003', convId);
+  await send('Cancel home collection LAB-3003', convId);
   await waitFor(async () => (await thread()).conversation.status === 'escalated', 'escalation');
 
   const detail = await api('GET', `/api/inbox/conversations/${convId}`);
@@ -159,7 +187,7 @@ test('widget conversation: answer, action, sensitive action approval, resolution
   const approved = await api('POST', `/api/inbox/action-runs/${run.id}`, { approve: true });
   assert.equal(approved.data.ok, true);
   const t = await thread();
-  assert.match(t.messages.at(-1).content, /KC-3003 has been cancelled/);
+  assert.match(t.messages.at(-1).content, /LAB-3003 has been cancelled/);
   assert.equal(t.conversation.status, 'ai');
 
   const fb = await fetch(`${base}/widget/feedback`, { method: 'POST', headers: { 'content-type': 'application/json', ...W }, body: JSON.stringify({ conversationId: convId, helpful: true }) });
@@ -168,6 +196,88 @@ test('widget conversation: answer, action, sensitive action approval, resolution
   assert.equal(after.data.conversation.status, 'resolved');
   assert.equal(after.data.conversation.csat, 5);
   assert.equal(after.data.conversation.resolved_by, 'human'); // a human approved an action in this thread
+});
+
+test('booking in Tamil over chat, visit page, QR check-in and live waiting time', async () => {
+  const pub = await api('GET', '/api/public/config');
+  const s = await api('POST', '/widget/session', { siteKey: pub.data.demoSiteKey });
+  const W = { authorization: `Bearer ${s.data.token}` };
+  const lastAi = async (n: number) =>
+    waitFor(async () => {
+      const t = (await api('GET', '/widget/conversation', undefined, W)).data;
+      const ai = t.messages.filter((m: any) => m.role === 'ai');
+      return ai.length >= n && ai[n - 1].content;
+    }, `reply ${n}`);
+  const sent = await api('POST', '/widget/messages', { content: 'அப்பாயின்ட்மென்ட் வேண்டும், சர்க்கரை நோய் மருத்துவர்' }, W);
+  assert.match(await lastAi(1), /Dr\. Lakshmi Narayanan/);
+  await api('POST', '/widget/messages', { content: '1', conversationId: sent.data.conversationId }, W);
+  assert.match(await lastAi(2), /முழுப் பெயர்/); // the booking stays in Tamil after a numeric reply
+  await api('POST', '/widget/messages', { content: 'Test Patient Kumar 9876501234', conversationId: sent.data.conversationId }, W);
+  const booked = await lastAi(3);
+  assert.doesNotMatch(booked, /Fasting/); // the confirmation comes before any prep instructions
+  assert.match(booked, /டோக்கன் \d+/);
+  const code = booked.match(/\/v\/([A-Z0-9x]+)/i)![1]!;
+  const visit = await api('GET', `/api/public/visit/${code}`);
+  assert.equal(visit.status, 200);
+  assert.equal(visit.data.staff.name, 'Dr. Lakshmi Narayanan');
+  assert.equal(visit.data.client.lang, 'ta');
+  // Prep instructions approved by the medical director are attached automatically (diabetes → fasting).
+  const appt = (await api('GET', '/api/visits/appointments?date=' + new Date(visit.data.visit.startsAt).toISOString().slice(0, 10))).data.find((a: any) => a.code === code);
+  assert.ok(appt);
+  if (visit.data.visit.today) {
+    const ci = await api('POST', `/api/public/visit/${code}/checkin`, {});
+    assert.equal(ci.status, 200);
+    assert.ok(ci.data.etaMin >= 0);
+  }
+  assert.equal((await api('GET', '/api/public/visit/NOPE00')).status, 404);
+});
+
+test('records: intake and findings agents, doctor approval before the patient is told', async () => {
+  const c = await api('POST', '/api/visits/clients', { name: 'Synthetic Test Patient', phone: '9000000999', lang: 'en' });
+  assert.equal(c.status, 200, JSON.stringify(c.data));
+  const rec = await api('POST', `/api/visits/clients/${c.data.id}/records`, { title: 'Lab', text: 'Date: 01/10/2026\nPotassium 6.9 mmol/L 3.5 - 5.1\nHbA1c 9.2 % 4.0 - 5.6\nTab. Metformin 500 mg 1-0-1' });
+  assert.equal(rec.status, 200);
+  const brief = await waitFor(async () => {
+    const b = (await api('GET', `/api/visits/clients/${c.data.id}`)).data;
+    return b.findings.length && b;
+  }, 'findings');
+  assert.ok(brief.latest.find((o: any) => o.test === 'k' && o.flag === 'critical_high'));
+  assert.ok(brief.findings.find((f: any) => f.severity === 'urgent'));
+  assert.deepEqual(brief.medicines, ['Tab. Metformin 500 mg']);
+  const draft = brief.outbox.find((o: any) => o.kind === 'finding');
+  assert.equal(draft.status, 'pending_approval'); // nothing clinical goes out on its own
+  const ok = await api('POST', `/api/visits/outbox/${draft.id}/approve`, { body: 'Dr. Rao reviewed your results. Please call us today.' });
+  assert.equal(ok.status, 200);
+  const after = (await api('GET', `/api/visits/clients/${c.data.id}`)).data;
+  assert.equal(after.outbox.find((o: any) => o.id === draft.id).status, 'sent');
+  assert.ok(after.findings.filter((f: any) => f.severity !== 'info').every((f: any) => f.status === 'shared'));
+});
+
+test('telecalling add-on: simulated reminder call and keypad answer', async () => {
+  const appts = (await api('GET', '/api/visits/appointments')).data.filter((a: any) => a.status === 'booked');
+  if (!appts.length) return;
+  const placed = await api('POST', '/api/visits/calls', { appointmentId: appts[0].id, purpose: 'reminder' });
+  assert.equal(placed.status, 200);
+  const r = await api('POST', `/api/visits/calls/${placed.data.id}/simulate`, { digit: '1' });
+  assert.match(r.data.reply, /confirm|உறுதி/);
+  const calls = (await api('GET', '/api/visits/calls')).data.calls;
+  assert.equal(calls.find((c: any) => c.id === placed.data.id).outcome, 'confirmed');
+});
+
+test('platform admin console: admins only, with agent runs and leads', async () => {
+  const lead = await api('POST', '/api/public/leads', { name: 'Dr. Test', email: 'lead@example.com', orgName: 'Test Clinic', institutionType: 'clinic' });
+  assert.equal(lead.status, 200);
+  const o = await api('GET', '/api/admin/overview');
+  assert.equal(o.status, 200);
+  assert.ok(o.data.runs.total > 0);
+  const agents = (await api('GET', '/api/admin/agents')).data;
+  assert.ok(agents.byAgent.find((a: any) => a.agent === 'safety'));
+  assert.ok(agents.byAgent.find((a: any) => a.agent === 'intake'));
+  const fails = (await api('GET', '/api/admin/failures')).data;
+  assert.ok(fails.byTag.find((t: any) => t.tag === 'handoff.emergency'));
+  const leads = (await api('GET', '/api/admin/leads')).data;
+  assert.ok(leads.find((l: any) => l.email === 'lead@example.com'));
+  for (const p of ['usage', 'providers', 'workspaces', 'audit']) assert.equal((await api('GET', `/api/admin/${p}`)).status, 200);
 });
 
 test('widget sessions cannot read other visitors\' conversations', async () => {
@@ -183,16 +293,16 @@ test('widget sessions cannot read other visitors\' conversations', async () => {
 test('edited AI drafts become knowledge (learning loop)', async () => {
   const pub = await api('GET', '/api/public/config');
   const s = await fetch(`${base}/widget/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ siteKey: pub.data.demoSiteKey }) }).then((r) => r.json());
-  const sent = await fetch(`${base}/widget/messages`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${s.token}` }, body: JSON.stringify({ content: 'Do you have a physical cafe I can visit in Indiranagar?' }) }).then((r) => r.json());
+  const sent = await fetch(`${base}/widget/messages`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${s.token}` }, body: JSON.stringify({ content: 'Do you have a branch in Tambaram?' }) }).then((r) => r.json());
   const conv = await waitFor(async () => {
     const d = await api('GET', `/api/inbox/conversations/${sent.conversationId}`);
     return d.data.conversation.status === 'escalated' && d.data;
   }, 'escalation');
   // Ask the AI for a suggestion via an @AI note, then edit and send it.
-  await api('POST', `/api/inbox/conversations/${sent.conversationId}/messages`, { content: '@AI tell them we are online-only for now', note: true });
+  await api('POST', `/api/inbox/conversations/${sent.conversationId}/messages`, { content: '@AI tell them we only have the Anna Nagar hospital for now', note: true });
   const withDraft = await api('GET', `/api/inbox/conversations/${sent.conversationId}`);
   const draft = withDraft.data.drafts.find((d: any) => d.status === 'pending');
-  const finalText = 'We are online-only for now — no physical cafe yet, but we deliver across Bengaluru in 1-2 days.';
+  const finalText = 'We have only one hospital, in Anna Nagar, for now. There is no branch in Tambaram yet.';
   if (draft) {
     assert.equal((await api('POST', `/api/inbox/conversations/${sent.conversationId}/drafts/${draft.id}`, { decision: 'send', text: finalText })).status, 200);
   } else {
@@ -201,13 +311,13 @@ test('edited AI drafts become knowledge (learning loop)', async () => {
     await api('POST', `/api/inbox/messages/${msg.data.id}/learn`, {});
   }
   assert.ok(conv);
-  const ask = await api('POST', '/api/knowledge/ask', { question: 'Do you have a physical cafe I can visit in Indiranagar?' });
+  const ask = await api('POST', '/api/knowledge/ask', { question: 'Do you have a branch in Tambaram?' });
   assert.equal(ask.data.kind, 'answer');
-  assert.match(ask.data.text, /online-only/);
+  assert.match(ask.data.text, /Anna Nagar/);
 });
 
 test('simulation reports a pass rate', async () => {
-  const created = await api('POST', '/api/simulations', { name: 'CI', questions: 'How long does delivery take? => 2-3\nDo you sell green tea?\nIs COD available? => 2,000' });
+  const created = await api('POST', '/api/simulations', { name: 'CI', questions: 'What are the OPD timings? => 8:00 AM\nDo you sell green tea?\nIs parking available? => basement' });
   assert.equal(created.status, 200);
   const sim = await waitFor(async () => {
     const d = await api('GET', `/api/simulations/${created.data.id}`);
@@ -215,12 +325,12 @@ test('simulation reports a pass rate', async () => {
   }, 'simulation');
   assert.equal(sim.simulation.total, 3);
   assert.equal(sim.cases.find((c: any) => c.question.includes('green tea')).passed, false);
-  assert.equal(sim.cases.find((c: any) => c.question.includes('delivery')).passed, true);
+  assert.equal(sim.cases.find((c: any) => c.question.includes('OPD')).passed, true);
 });
 
 test('analytics and DPDP export/erase', async () => {
   const a = await api('GET', '/api/analytics?days=30');
-  assert.ok(a.data.totals.conversations >= 12);
+  assert.ok(a.data.totals.conversations >= 10);
   assert.ok(a.data.languages.some((l: any) => l.lang === 'hi'));
   const pub = await api('GET', '/api/public/config');
   const session = await api('POST', '/widget/session', { siteKey: pub.data.demoSiteKey });
@@ -264,7 +374,7 @@ test('public demo dashboard is read-only and hides admin data', async () => {
   assert.equal((await api('PATCH', '/api/workspace/settings', {})).status, 403);
   assert.equal((await api('GET', '/api/workspace/team')).status, 403);
   assert.equal((await api('GET', '/api/workspace/model')).status, 403);
-  assert.equal((await api('POST', '/api/knowledge/ask', { question: 'How long does delivery take?' })).status, 200);
+  assert.equal((await api('POST', '/api/knowledge/ask', { question: 'What are the OPD timings?' })).status, 200);
   const cfg = await api('GET', '/api/public/config');
   assert.equal('demoEmail' in cfg.data, false);
   await api('POST', '/api/auth/logout', {});

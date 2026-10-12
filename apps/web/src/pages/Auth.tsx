@@ -112,7 +112,7 @@ export function Signup({ inviteToken, inviteInfo }: { inviteToken?: string; invi
         </Field>
         {!inviteInfo && (
           <Field label="Business name">
-            <input className="input" value={form.orgName} onChange={set('orgName')} placeholder="e.g. Kaapi & Co." />
+            <input className="input" value={form.orgName} onChange={set('orgName')} placeholder="e.g. Sri Lakshmi Clinic" />
           </Field>
         )}
         <button className="btn primary lg" disabled={busy}>{busy ? 'Creating…' : inviteInfo ? 'Join workspace' : 'Create workspace'}</button>

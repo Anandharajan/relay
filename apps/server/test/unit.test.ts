@@ -91,3 +91,31 @@ test('handoff and small-talk intents across languages', () => {
   assert.equal(smalltalk('धन्यवाद'), 'thanks');
   assert.equal(smalltalk('thanks, where is my order?'), null);
 });
+
+test('safety: emergencies in Tamil/Hindi/English, and medical advice vs admin questions', async () => {
+  const { isEmergency, asksMedicalAdvice, maskHealth } = await import('../src/engine/safety.ts');
+  assert.ok(isEmergency('என் அப்பாவுக்கு நெஞ்சு வலி'));
+  assert.ok(isEmergency('मेरी माँ बेहोश हो गई'));
+  assert.ok(isEmergency('my father collapsed and is not responding'));
+  assert.ok(!isEmergency('What are the OPD timings?'));
+  assert.ok(asksMedicalAdvice('Can I take paracetamol with metformin?'));
+  assert.ok(asksMedicalAdvice('Is my sugar level high?'));
+  assert.ok(!asksMedicalAdvice('Is my report LAB-2042 ready?'));
+  assert.ok(!asksMedicalAdvice('What is the consultation fee?'));
+  const vault: Record<string, string> = {};
+  assert.equal(maskHealth('I have diabetes and take metformin', vault), 'I have [HEALTH_1] and take [HEALTH_2]');
+});
+
+test('intake agent: lab values, ranges, units and medicines from report text', async () => {
+  const { extractObservations, flagFor, extractMedicines, extractDate } = await import('../src/services/records.ts');
+  const obs = extractObservations('Vitamin D (25-OH) 14 ng/mL 30 - 100\nLDL Cholesterol 162 mg/dL < 100\nTotal Cholesterol 236 mg/dL\nPlatelet Count 2.6 lakhs/uL\nPotassium 6.8 mmol/L 3.5 - 5.1\nBP: 152/96');
+  const by = Object.fromEntries(obs.map((o) => [o.test, o]));
+  assert.equal(by.vitd!.value, 14);
+  assert.equal(by.ldl!.value, 162);
+  assert.equal(by.tc!.value, 236);
+  assert.equal(by.plt!.value, 260000);
+  assert.equal(flagFor(by.k!), 'critical_high');
+  assert.equal(by.sbp!.value, 152);
+  assert.deepEqual(extractMedicines('Tab. Metformin 500 mg 1-0-1\nCap. Pantoprazole 40 mg'), ['Tab. Metformin 500 mg', 'Cap. Pantoprazole 40 mg']);
+  assert.equal(extractDate('Date: 05/09/2026'), '2026-09-05');
+});

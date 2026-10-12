@@ -31,7 +31,7 @@ export function Actions() {
   const [editing, setEditing] = useState<any | null>(null);
   const [testing, setTesting] = useState<any | null>(null);
   const [importing, setImporting] = useState(false);
-  const drift = useApi<{ schemaV2: boolean }>(me?.org.name === 'Kaapi & Co.' ? '/api/demo/drift' : null);
+  const drift = useApi<{ schemaV2: boolean }>(me?.org.name === 'Poonthalir Hospital' ? '/api/demo/drift' : null);
   const admin = canAdmin(me);
 
   return (
@@ -39,7 +39,7 @@ export function Actions() {
       <div className="page-head">
         <div>
           <h1>Actions</h1>
-          <p>Let the AI call your APIs — order status, cancellations, refunds. Sensitive actions always wait for a human to verify.</p>
+          <p>Let the AI call your systems: lab report status, appointment or order lookups, cancellations. Sensitive actions always wait for a human to verify.</p>
         </div>
         {admin && (
           <div className="row">
@@ -53,14 +53,14 @@ export function Actions() {
         <div className="card pad row between wrap">
           <div>
             <strong>🩹 Demo: self-healing Actions</strong>
-            <p className="small muted">Make the demo store's order API change its response shape, then test “Order status” — Relay detects the drift and proposes a fix.</p>
+            <p className="small muted">Make the demo hospital's lab API change its response shape, then test “Lab report status”. Relay detects the drift and proposes a fix.</p>
           </div>
           <button
             className="btn"
             onClick={async () => {
               await api('/api/demo/drift', { body: { on: !drift.data!.schemaV2 } });
               await drift.reload();
-              toast(drift.data!.schemaV2 ? 'Store API restored to v1' : 'Store API switched to v2 — try testing “Order status”');
+              toast(drift.data!.schemaV2 ? 'Lab API restored to v1' : 'Lab API switched to v2. Now test “Lab report status”');
             }}
           >
             {drift.data.schemaV2 ? 'Restore API v1' : 'Simulate API change (v2)'}
@@ -100,7 +100,7 @@ export function Actions() {
       ) : (
         <div className="card">
           <Empty icon="⚡" title="No actions yet">
-            <span className="small">Connect an order-lookup endpoint so the AI can answer “where is my order?” on its own.</span>
+            <span className="small">Connect a lookup endpoint (report status, booking, order) so the AI can answer “is my report ready?” on its own.</span>
           </Empty>
         </div>
       )}
@@ -180,7 +180,7 @@ function ActionEditor({ initial, onClose, onSaved }: { initial: any; onClose: ()
         <select className="select" style={{ width: 110 }} value={a.method} onChange={(e) => set('method', e.target.value)}>
           {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => <option key={m}>{m}</option>)}
         </select>
-        <input className="input grow" value={a.url} onChange={(e) => set('url', e.target.value)} placeholder="https://api.yourstore.in/orders/{order_id}" />
+        <input className="input grow" value={a.url} onChange={(e) => set('url', e.target.value)} placeholder="https://his.example.in/lab/{lab_id}" />
       </div>
       <div className="stack" style={{ gap: 8 }}>
         <div className="row between"><strong className="small">Parameters</strong><button className="btn sm" onClick={() => set('params', [...a.params, { name: '', description: '', required: true }])}>+ Add</button></div>
@@ -207,7 +207,7 @@ function ActionEditor({ initial, onClose, onSaved }: { initial: any; onClose: ()
 }
 
 function ActionTest({ action, onClose }: { action: any; onClose: () => void }) {
-  const [params, setParams] = useState<Record<string, string>>(Object.fromEntries(action.params.map((p: Param) => [p.name, p.name === 'order_id' ? 'KC-1042' : ''])));
+  const [params, setParams] = useState<Record<string, string>>(Object.fromEntries(action.params.map((p: Param) => [p.name, p.name === 'lab_id' ? 'LAB-2041' : p.name === 'order_id' ? 'ORD-1042' : ''])));
   const [result, setResult] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const run = async () => {

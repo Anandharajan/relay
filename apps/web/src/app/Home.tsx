@@ -16,17 +16,18 @@ export function Home() {
   const readySources = (sources.data ?? []).filter((s) => s.status === 'ready' && s.type !== 'learned').length;
   const demo = me.role === 'viewer';
   const tour = [
-    { title: 'Chat as a customer', text: 'Open the demo store and ask something — in English, हिंदी or ಕನ್ನಡ. Try an order ID like KC-1042, or ask for a human.', href: '/demo', cta: 'Open demo store ↗' },
-    { title: 'Watch it land in the inbox', text: 'Your chat appears here live, tagged with its language. Escalated chats wait in "Needs you" with the AI\'s suggested answer.', to: '/app/inbox', cta: 'Open inbox' },
-    { title: 'Ask the AI directly', text: 'Test any question against the knowledge base and see the cited sources it would answer from.', to: '/app/knowledge', cta: 'Open knowledge' },
-    { title: 'Check simulations and actions', text: 'See a batch test with its pass rate, and the order-lookup Action the AI calls.', to: '/app/simulations', cta: 'Open simulations' },
-    { title: 'See what it saves', text: 'Resolution rate, CSAT, languages, handoff reasons and cost per resolution.', to: '/app/analytics', cta: 'Open analytics' },
+    { title: 'Chat as a patient', text: 'Open the demo hospital site and ask in தமிழ், English or हिंदी: book an appointment, ask the fees, check LAB-2041, or ask a medical question to see the safety stop.', href: '/demo', cta: 'Open hospital site ↗' },
+    { title: 'Watch the live queue', text: 'Tokens, who is with the doctor, and waiting-time estimates that move as consultations finish. Your booking appears here.', to: '/app/visits', cta: 'Open queue' },
+    { title: 'Read a doctor brief', text: 'Murugan Pillai has a critical potassium; Lakshmi Raman\'s HbA1c is rising. The intake and findings agents read the reports; nothing reaches the patient until a doctor approves.', to: '/app/clients', cta: 'Open patients' },
+    { title: 'Approve what patients are told', text: 'AI-drafted, non-diagnostic messages wait for a doctor to edit, approve or discard them.', to: '/app/approvals', cta: 'Open approvals' },
+    { title: 'Hear the telecaller', text: 'Reminder and follow-up calls with keypad answers (simulated here; Twilio in production).', to: '/app/calls', cta: 'Open calls' },
   ];
   const steps = [
     { done: readySources > 0, title: 'Add knowledge', text: 'Crawl your help center, upload PDFs/DOCX or paste FAQs.', to: '/app/knowledge', cta: 'Add a source' },
     { done: (sims.data ?? []).some((s) => s.status === 'done'), title: 'Run a simulation', text: 'Test 20–50 real questions and check the pass rate before going live.', to: '/app/simulations', cta: 'Run simulation' },
     { done: (stats.data?.totals?.conversations ?? 0) > 0, title: 'Preview your widget', text: 'Chat with your own AI on a test page — no website needed. The conversation lands in your inbox.', to: '/preview', cta: 'Open preview' },
-    { done: false, title: 'Go live', text: 'Paste one script tag on your site, or connect WhatsApp.', to: '/app/settings/install', cta: 'Get the snippet' },
+    { done: false, title: 'Add staff and hours', text: 'Bookable calendars for doctors, faculty or staff: the AI offers these slots on chat, WhatsApp and calls.', to: '/app/settings/staff', cta: 'Add staff' },
+    { done: me.org.whatsappConnected, title: 'Go live on WhatsApp', text: 'Connect your WhatsApp Business number, or paste one script tag on your site.', to: '/app/settings/channels', cta: 'Connect' },
     { done: (team.data?.members?.length ?? 0) > 1, title: 'Invite your team', text: 'AI and humans share one inbox. Approve drafts, take over, @AI in notes.', to: '/app/settings/team', cta: 'Invite' },
   ];
   const s = stats.data!;

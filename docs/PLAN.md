@@ -1,23 +1,22 @@
 # Relay: an open-source AI support agent for the next billion customers
 
 > Working name: "Relay". Check trademark and domain availability before launch.
-> Reference product: [Fin by Intercom](https://fin.ai/) ([Product Hunt](https://www.producthunt.com/products/fin))
 > Idea sources: YC Requests for Startups, Fall 2026
 
 ---
 
 ## 1. Product concept
 
-### What Fin does (the baseline)
+### What enterprise AI support agents do (the baseline)
 - An AI agent that resolves support conversations over chat, email and voice, grounded in a company's help content.
 - **Procedures and Actions** handle multi-step workflows such as refunds and order lookups by calling backend APIs.
-- **Simulations and batch testing** let a team check answers before going live. Fin also reads images and supports 45+ languages.
-- **Pricing:** about $0.99 per resolution, a 50-resolution monthly minimum, plus Intercom seat costs. Most small businesses in India and other emerging markets can't afford this.
+- **Simulations and batch testing** let a team check answers before going live. Leading agents also read images and support dozens of languages.
+- **Pricing:** about $0.99 per resolution, a 50-resolution monthly minimum, plus seat costs. Most small businesses in India and other emerging markets can't afford this.
 
 ### The gap
-SMBs, D2C brands, clinics, coaching institutes and local services mostly support customers over **WhatsApp**, **in local languages**, and on a **tight budget**. Fin is priced and built for SaaS companies in the US and EU.
+SMBs, D2C brands, clinics, coaching institutes and local services mostly support customers over **WhatsApp**, **in local languages**, and on a **tight budget**. per-resolution AI agents is priced and built for SaaS companies in the US and EU.
 
-### Relay = Fin-style resolution + YC Fall 2026 ideas
+### Relay = agentic resolution + YC Fall 2026 ideas
 
 | YC RFS (Fall 2026) | How Relay uses it |
 |---|---|
@@ -28,7 +27,7 @@ SMBs, D2C brands, clinics, coaching institutes and local services mostly support
 | **AI-Native Compliance Infrastructure** | Built-in compliance with India's DPDP Act: a PII redaction layer before any LLM call, consent logs, retention policies, and an exportable audit trail of every AI action |
 | **A Cloud for Small Software** | Relay itself runs almost entirely on free tiers and is self-hostable. That makes a good open-source launch story. |
 
-**One-liner:** *"Fin for the next billion customers: an open-source, BYOK AI agent that resolves support on WhatsApp and web chat in your customers' language, works alongside your team, and keeps its integrations working on its own."*
+**One-liner:** *"The AI front desk for the next billion customers: an open-source, BYOK AI agent that resolves support on WhatsApp and web chat in your customers' language, works alongside your team, and keeps its integrations working on its own."*
 
 ### MVP scope (what launches on Product Hunt)
 1. Onboarding: sign up, create a workspace, add a knowledge source (URL crawl, PDF/DOCX upload, FAQ paste).
@@ -216,13 +215,13 @@ relay/
 | **Cloud Free** | ₹0 | 1 site, 100 AI conversations/mo on the free model, or unlimited with BYOK |
 | **Starter** | ~₹999/mo | 1,000 resolutions, Relay-provided model, WhatsApp |
 | **Growth** | ~₹3,999/mo | 5,000 resolutions, Actions, simulations, 5 seats |
-| Overage | ~₹5 per resolution | ≈ $0.06, about 16× cheaper than Fin's $0.99 |
+| Overage | ~₹5 per resolution | ≈ $0.06, a fraction of typical $0.99 per-resolution pricing |
 
 ### Launch checklist
 - [ ] Production URL on a custom domain, with status page and docs
 - [ ] Public GitHub repo with a clean README, a one-command self-host, and a demo GIF
 - [ ] **Live demo:** a fake D2C store whose widget answers in English, Hindi and Kannada
-- [ ] Product Hunt listing: name, tagline (60 chars), 3–5 gallery images, a 60–90 s video, maker's first comment explaining "why Fin is unaffordable for 90% of businesses"
+- [ ] Product Hunt listing: name, tagline (60 chars), 3–5 gallery images, a 60–90 s video, maker's first comment explaining "why per-resolution AI agents are unaffordable for 90% of businesses"
 - [ ] Topics: Customer Support, Artificial Intelligence, Open Source, Developer Tools
 - [ ] Launch at 12:01 AM PT (12:31 PM IST), Tuesday–Thursday; line up early supporters (no vote-asking, which Product Hunt forbids)
 - [ ] Product Hunt launch offer, e.g. 3 months of Starter free via a Razorpay coupon
@@ -241,7 +240,7 @@ relay/
 | Customer PII sent to LLMs (Gemini free tier trains on data) | Redaction layer; production tenants must use BYOK or paid models |
 | Razorpay KYC delays / international cards | Start KYC in week 0; keep the Payments interface abstract so Stripe or Lemon Squeezy can be added |
 | Prompt injection via knowledge docs or customer messages | Separate system instructions from untrusted content, an allow-list of tools per intent, sensitive Actions need human verification, output schema validation |
-| Copying Fin too closely | Lead with the YC-inspired differences: WhatsApp and vernacular, multiplayer, self-healing Actions, agent endpoint, open source |
+| Looking like a clone of enterprise support tools | Lead with the YC-inspired differences: WhatsApp and vernacular, multiplayer, self-healing Actions, agent endpoint, open source |
 
 ---
 
