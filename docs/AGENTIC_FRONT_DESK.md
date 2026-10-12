@@ -27,6 +27,7 @@ flowchart LR
 - Scanned documents without readable text are flagged for manual intake. Report extraction is a review aid; clinical interpretation and outgoing clinical drafts require an admin/doctor's review.
 - Clear spam/off-topic requests and duplicate messages are retained and flagged for staff review. Medical questions are not dismissed as spam.
 - Incoming bursts are combined for 350 ms and processed sequentially per conversation on the current single-process web service. Identical substantive questions within 10 seconds are retained and flagged without generating another reply; numbered booking choices are exempt. Messages persist in Postgres; the short reply scheduler itself is in memory. Before scaling web replicas, move reply scheduling to the durable queue with per-conversation locking.
+- Proactive clinic messages claim an outbox row atomically. A 10-minute lease allows a crashed delivery to be recovered, and a stable message ID prevents another worker or retry from inserting a duplicate patient notification.
 
 ## Patient ↔ staff links
 

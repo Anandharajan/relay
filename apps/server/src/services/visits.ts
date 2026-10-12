@@ -237,10 +237,13 @@ export async function approveMessage(orgId: string, outboxId: string, userId: st
 /** Deliver due messages into the client's conversation (web chat, WhatsApp …). */
 export async function deliverDue(onlyId?: string) {
   const rows = await ctx.db.query<{ id: string; org_id: string; client_id: string; kind: string; body: string }>(
-    `select id, org_id, client_id, kind, body from outbox where status = 'scheduled' and send_at <= now() ${onlyId ? 'and id = $1' : ''} order by send_at limit 200`,
+    `select id, org_id, client_id, kind, body from outbox where (status = 'scheduled' or (status = 'sending' and (meta->>'deliveryClaimedAt')::timestamptz < now() - interval '10 minutes')) and send_at <= now() ${onlyId ? 'and id = $1' : ''} order by send_at limit 200`,
     onlyId ? [onlyId] : [],
   );
   for (const r of rows) {
+    const claimed = await ctx.db.one(`update outbox set status = 'sending', meta = meta || jsonb_build_object('deliveryClaimedAt', now())
+      where id = $1 and (status = 'scheduled' or (status = 'sending' and (meta->>'deliveryClaimedAt')::timestamptz < now() - interval '10 minutes')) returning id`, [r.id]);
+    if (!claimed) continue;
     try {
       const org = (await getOrg(r.org_id))!;
       const client = (await ctx.db.one<Client>('select * from clients where id = $1', [r.client_id]))!;
@@ -250,7 +253,7 @@ export async function deliverDue(onlyId?: string) {
         conv = await createConversation(org, channel === 'whatsapp' ? client.phone! : `client_${client.id.slice(0, 8)}`, channel, { name: client.name, contact: client.phone ?? undefined });
         await ctx.db.query('update clients set conversation_id = $2 where id = $1', [client.id, conv.id]);
       }
-      await addMessage(conv, 'ai', r.body, { meta: { outboxId: r.id, kind: r.kind, proactive: true } });
+      await addMessage(conv, 'ai', r.body, { idempotencyKey: r.id, meta: { outboxId: r.id, kind: r.kind, proactive: true } });
       await ctx.db.query(`update outbox set status = 'sent', sent_at = now() where id = $1`, [r.id]);
       publish(`client:${r.client_id}`, 'message', { kind: r.kind, body: r.body });
     } catch (e) {

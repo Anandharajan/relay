@@ -59,14 +59,15 @@ export async function addMessage(
   conv: Conversation,
   role: Message['role'],
   content: string,
-  extra: { citations?: unknown[]; confidence?: number | null; tokens?: number; costInr?: number; authorId?: string | null; redacted?: string; meta?: object } = {},
+  extra: { citations?: unknown[]; confidence?: number | null; tokens?: number; costInr?: number; authorId?: string | null; redacted?: string; meta?: object; idempotencyKey?: string } = {},
 ): Promise<Message> {
-  const id = uuid();
-  await ctx.db.query(
+  const id = extra.idempotencyKey ?? uuid();
+  const inserted = await ctx.db.query(
     `insert into messages (id, org_id, conversation_id, role, content, redacted, citations, confidence, tokens, cost_inr, author_id, meta)
-     values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12::jsonb)`,
+     values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12::jsonb) on conflict (id) do nothing returning id`,
     [id, conv.org_id, conv.id, role, content, extra.redacted ?? null, extra.citations ?? [], extra.confidence ?? null, extra.tokens ?? 0, extra.costInr ?? 0, extra.authorId ?? null, extra.meta ?? {}],
   );
+  if (!inserted.length) return (await ctx.db.one<Message>('select * from messages where id = $1', [id]))!;
   if (role === 'customer' || role === 'ai' || role === 'human') {
     await ctx.db.query('update conversations set last_message_at = now(), last_message_preview = $2 where id = $1', [conv.id, truncate(content, 140)]);
   }

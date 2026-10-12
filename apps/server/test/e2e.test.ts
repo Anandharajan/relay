@@ -391,6 +391,23 @@ test('patient chat collects reports, links staff context and isolates visitor id
   assert.equal((await fetch(base + '/widget/records', { method: 'POST', headers: { authorization: `Bearer ${outsider.token}` }, body: attack })).status, 404);
 });
 
+test('concurrent proactive deliveries emit one patient message and recover an expired claim', async () => {
+  const { ctx } = await import('../src/ctx.ts');
+  const { getOrg } = await import('../src/services/orgs.ts');
+  const { queueMessage, deliverDue } = await import('../src/services/visits.ts');
+  const me = (await api('GET', '/api/me')).data;
+  const org = (await getOrg(me.org.id))!;
+  const client = (await ctx.db.one<{ id: string }>("select id from clients where org_id = $1 and name = 'Synthetic Upload Patient'", [org.id]))!;
+  const id = await queueMessage(org, client.id, 'custom', 'One synthetic notification.', { sendAt: new Date(Date.now() + 60_000) });
+  await ctx.db.query('update outbox set send_at = now() where id = $1', [id]);
+  await Promise.all([deliverDue(id), deliverDue(id), deliverDue(id)]);
+  assert.equal((await ctx.db.one<{ n: number }>('select count(*)::int as n from messages where id = $1', [id]))!.n, 1);
+  await ctx.db.query(`update outbox set status = 'sending', meta = meta || jsonb_build_object('deliveryClaimedAt', now() - interval '11 minutes') where id = $1`, [id]);
+  await deliverDue(id);
+  assert.equal((await ctx.db.one<{ n: number }>('select count(*)::int as n from messages where id = $1', [id]))!.n, 1);
+  assert.equal((await ctx.db.one<{ status: string }>('select status from outbox where id = $1', [id]))!.status, 'sent');
+});
+
 test('burst messages give one consolidated reply and unrelated requests are flagged', async () => {
   const pub = (await api('GET', '/api/public/config')).data;
   const s = (await api('POST', '/widget/session', { siteKey: pub.demoSiteKey })).data;
