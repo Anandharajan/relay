@@ -119,8 +119,10 @@ export async function freeSlots(org: Org, staff: Staff, count = 6, from = new Da
 // ── clients ─────────────────────────────────────────────────────────────────────────────────────
 export async function findOrCreateClient(org: Org, input: { name: string; phone?: string | null; lang?: string; conversationId?: string | null }): Promise<Client> {
   const phone = input.phone ? normalizePhone(input.phone) : null;
-  let existing = phone ? await ctx.db.one<Client>('select * from clients where org_id = $1 and phone = $2', [org.id, phone]) : undefined;
-  if (!existing && input.conversationId) existing = await ctx.db.one<Client>('select * from clients where org_id = $1 and conversation_id = $2', [org.id, input.conversationId]);
+  // A web visitor claiming a phone number is not proof of ownership of an existing patient.
+  let existing = input.conversationId
+    ? await ctx.db.one<Client>('select * from clients where org_id = $1 and conversation_id = $2', [org.id, input.conversationId])
+    : phone ? await ctx.db.one<Client>('select * from clients where org_id = $1 and phone = $2', [org.id, phone]) : undefined;
   if (existing) {
     if (input.conversationId && !existing.conversation_id) await ctx.db.query('update clients set conversation_id = $2 where id = $1', [existing.id, input.conversationId]);
     return (await ctx.db.one<Client>('select * from clients where id = $1', [existing.id]))!;

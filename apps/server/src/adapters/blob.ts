@@ -58,7 +58,15 @@ function s3Store(): BlobStore {
 }
 
 let store: BlobStore | null = null;
+function memoryStore(): BlobStore {
+  const files = new Map<string, Uint8Array>();
+  return {
+    async put(key, data) { files.set(key, new Uint8Array(data)); },
+    async get(key) { const data = files.get(key); return data ? new Uint8Array(data) : null; },
+    async delete(key) { files.delete(key); },
+  };
+}
 export function getBlobStore(): BlobStore {
-  if (!store) store = config.blob.s3Endpoint ? s3Store() : fsStore(join(config.dataDir, 'blobs'));
+  if (!store) store = config.blob.s3Endpoint ? s3Store() : config.dataDir === ':memory:' ? memoryStore() : fsStore(join(config.dataDir, 'blobs'));
   return store;
 }

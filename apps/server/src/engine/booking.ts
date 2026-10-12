@@ -158,7 +158,8 @@ async function finishBooking(org: Org, state: BookingState, name: string, phone:
     const s = (await ctx.db.one<Staff>('select * from staff_members where id = $1', [appt.staff_id]))!;
     return {
       text: t('booked', lang, { staff: s.name, when: formatWhen(appt.starts_at, org, lang), token: String(appt.token_no), link: visitLink(appt.code) }),
-      metaPatch: { booking: null, appointmentId: appt.id },
+      metaPatch: { booking: null, appointmentId: appt.id, clientId: client.id,
+        agent: { intent: 'booking', nextAction: 'attend_visit', summary: `Booked with ${s.name}; token ${appt.token_no}.` } },
     };
   } catch (e) {
     const s = await ctx.db.one<Staff>('select * from staff_members where id = $1', [state.staffId]);

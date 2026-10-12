@@ -15,7 +15,7 @@ export const config = {
   publicUrl: (env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/$/, ''),
   /** Empty = embedded PGlite in DATA_DIR. Otherwise a postgres:// URL (pgvector required). */
   databaseUrl: env.DATABASE_URL ?? '',
-  dataDir: resolve(env.DATA_DIR ?? './data'),
+  dataDir: env.DATA_DIR === ':memory:' ? ':memory:' : resolve(env.DATA_DIR ?? './data'),
   secret: env.RELAY_SECRET || devSecret,
   usingDevSecret: !env.RELAY_SECRET,
   /** all = HTTP + background jobs (single box). web = HTTP only. worker = jobs + cron only. */

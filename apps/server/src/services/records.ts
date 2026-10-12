@@ -196,6 +196,16 @@ async function llmExtract(org: Org, text: string): Promise<ExtractedObservation[
 }
 
 /** Job: intake → findings → investigations, for one uploaded record. */
+async function syncReportContext(rec: { org_id: string; client_id: string; title: string }, status: string) {
+  const client = await ctx.db.one<{ conversation_id: string | null }>('select conversation_id from clients where id = $1 and org_id = $2', [rec.client_id, rec.org_id]);
+  if (!client?.conversation_id) return;
+  const { getConversation, patchMeta } = await import('./conversations.ts');
+  const conv = await getConversation(rec.org_id, client.conversation_id);
+  if (conv) await patchMeta(conv, { agent: { ...conv.meta.agent, intent: 'report_received',
+    summary: `Report received: ${rec.title}. ${status === 'needs_review' ? 'Manual intake review required.' : 'Intake processed; clinical review required.'}`,
+    nextAction: 'staff_review', updatedAt: new Date().toISOString() } });
+}
+
 export async function processRecord(payload: { recordId: string }) {
   const rec = await ctx.db.one<{ id: string; org_id: string; client_id: string; title: string; blob_key: string | null; text: string | null; uploaded_by: string }>(
     'select * from records where id = $1',
@@ -210,6 +220,7 @@ export async function processRecord(payload: { recordId: string }) {
   if (!text?.trim()) {
     await recordRun({ orgId: rec.org_id, agent: 'intake', trigger: `upload:${rec.uploaded_by}`, clientId: rec.client_id, status: 'handoff', outcome: 'needs manual review', tags: ['intake.unreadable_file'], steps: [{ name: 'extract_text', detail: 'no text layer (image/scan)' }], latencyMs: Date.now() - t0 });
     await ctx.db.query(`update records set status = 'needs_review', summary = $2::jsonb where id = $1`, [rec.id, { note: 'Image or scanned file: enter key values manually, or enable model-assisted extraction.' }]);
+    await syncReportContext(rec, 'needs_review');
     publish(`org:${rec.org_id}`, 'records.updated', { clientId: rec.client_id });
     return;
   }
@@ -250,6 +261,7 @@ export async function processRecord(payload: { recordId: string }) {
     await queueMessage(o, rec.client_id, 'record_ack', ack);
   }
   publish(`org:${rec.org_id}`, 'records.updated', { clientId: rec.client_id, findings: created });
+  await syncReportContext(rec, 'processed');
 }
 
 async function matchInvestigations(org: Org, clientId: string, recordId: string, tests: string[], observedOn: string) {

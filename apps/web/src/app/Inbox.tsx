@@ -47,6 +47,8 @@ export function Inbox() {
       if (m.conversation_id === id) setThreadVersion((v) => v + 1);
     },
     'conversation.created': reloadList,
+    'records.updated': () => { reloadList(); setThreadVersion((v) => v + 1); },
+    'visits.updated': () => { reloadList(); setThreadVersion((v) => v + 1); },
     'conversation.updated': (d) => {
       reloadList();
       if (d.id === id) setThreadVersion((v) => v + 1);
@@ -107,6 +109,7 @@ export function Inbox() {
                     {c.pending_drafts > 0 && <span className="badge brand">✍️ draft ready</span>}
                     {c.lang !== 'en' && <span className="badge">{langLabel[c.lang]?.split(' ')[0] ?? c.lang}</span>}
                     {c.assignee_name && <span className="badge">@{c.assignee_name.split(' ')[0]}</span>}
+                    {c.meta?.reviewFlag && <span className="badge warn">Flagged: {c.meta.reviewFlag.replaceAll('_', ' ')}</span>}
                     {viewers.length > 0 && <span className="badge info">👀 {viewers.map((v) => v.name.split(' ')[0]).join(', ')}</span>}
                   </div>
                 </Link>
@@ -212,6 +215,18 @@ function Thread({ id, version, presence, onChange }: { id: string; version: numb
         </div>
 
         <div className="msgs">
+          {(data.patient || conv.meta?.agent || conv.meta?.reviewFlag) && <div className="card pad stack" aria-label="Patient context">
+            <strong>Patient context &amp; next action</strong>
+            {conv.meta?.agent && <><p>{conv.meta.agent.summary}</p><span className="badge">{conv.meta.agent.nextAction?.replaceAll('_', ' ')} · {conv.meta.agent.engine}</span></>}
+            {conv.meta?.reviewFlag && <span className="badge warn">Flagged for staff review: {conv.meta.reviewFlag.replaceAll('_', ' ')}</span>}
+            {conv.meta?.reviewFlag && me?.role !== 'viewer' && <button className="btn sm" onClick={() => act(() => api(`/api/inbox/conversations/${id}/clear-flag`, { body: {} }), 'Flag reviewed')}>Clear reviewed flag</button>}
+            {data.patient && <>
+              <div className="row wrap"><Link className="btn sm" to={`/app/clients/${data.patient.client.id}`}>Open patient brief</Link><Link className="btn sm" to="/app/visits">Appointment queue</Link></div>
+              {data.patient.appointment && <p>{data.patient.appointment.staff_name} · Token {data.patient.appointment.token_no} · {data.patient.appointment.status}</p>}
+              <p>Reports: {data.patient.records.length ? data.patient.records.map((r: any) => `${r.title} (${r.status})`).join('; ') : 'None uploaded'}</p>
+              {data.patient.requested.length > 0 && <p>Requested: {data.patient.requested.map((r: any) => r.label).join(', ')}</p>}
+            </>}
+          </div>}
           {data.messages.map((m: any) => (
             <div key={m.id} className={`bubble-row ${m.role}`}>
               <div className="bubble">{m.role === 'note' ? `📝 ${m.content}` : m.content}</div>

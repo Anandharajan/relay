@@ -12,6 +12,7 @@ interface WidgetConfig {
   brandColor: string;
   greeting: string;
   consentText: string;
+  reportUploads?: boolean;
 }
 
 interface Citation {
@@ -98,6 +99,8 @@ interface Msg {
       <div class="log" aria-live="polite"></div>
       <div class="error" hidden></div>
       <form class="composer">
+        <button class="attach" type="button" aria-label="Attach report" hidden>📎</button>
+        <input class="report-file" type="file" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.heic,.webp" hidden />
         <textarea rows="1" placeholder="Type your message…" aria-label="Message" maxlength="2000"></textarea>
         <button type="submit" aria-label="Send"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3.4 20.4l17.5-7.5c.8-.4.8-1.5 0-1.8L3.4 3.6c-.7-.3-1.4.3-1.3 1l1.4 6.4 9 1-9 1-1.4 6.4c-.1.7.6 1.3 1.3 1z"/></svg></button>
       </form>
@@ -211,6 +214,7 @@ interface Msg {
     const s = await call('/widget/session', { method: 'POST', body: { siteKey, token: saved.token } });
     state.token = s.token;
     state.cfg = s.config;
+    ($('.attach') as HTMLButtonElement).hidden = !state.cfg?.reportUploads;
     save({ token: s.token });
     const conv = await call('/widget/conversation');
     if (conv.conversation) {
@@ -220,6 +224,7 @@ interface Msg {
       connect();
     }
     document.body.appendChild(host);
+    if (state.conversationId) window.dispatchEvent(new CustomEvent('relay:conversation', { detail: { conversationId: state.conversationId } }));
     render();
   }
 
@@ -242,6 +247,7 @@ interface Msg {
         state.conversationId = r.conversationId;
         connect();
       }
+      window.dispatchEvent(new CustomEvent('relay:conversation', { detail: { conversationId: r.conversationId } }));
     } catch (e) {
       state.typing = false;
       state.error = (e as Error).message;
@@ -290,6 +296,23 @@ interface Msg {
       return;
     }
     await call('/widget/handoff', { method: 'POST', body: { conversationId: state.conversationId } }).catch(() => {});
+  });
+  $('.attach').addEventListener('click', () => (root.querySelector('.report-file') as HTMLInputElement).click());
+  root.querySelector('.report-file')!.addEventListener('change', async (event) => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const button = $('.attach') as HTMLButtonElement;
+    button.disabled = true;
+    state.error = '';
+    try {
+      if (!state.conversationId) throw new Error('Book an appointment in this chat before uploading a report.');
+      const form = new FormData(); form.set('file', file); form.set('conversationId', state.conversationId);
+      const r = await fetch(api + '/widget/records', { method: 'POST', headers: { authorization: `Bearer ${state.token}` }, body: form });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Upload failed.');
+    } catch (e) { state.error = (e as Error).message; }
+    finally { input.value = ''; button.disabled = false; render(); }
   });
 
   (window as any).Relay = { open: () => toggle(true), close: () => toggle(false), toggle: () => toggle() };

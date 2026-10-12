@@ -108,7 +108,7 @@ export function ClientDetail() {
   const [booking, setBooking] = useState(false);
   const [msg, setMsg] = useState('');
   const readOnly = me?.role === 'viewer';
-  useEvents({ 'records.updated': (d) => d.clientId === id && void b.reload() });
+  useEvents({ 'records.updated': (d) => d.clientId === id && void b.reload(), 'visits.updated': () => void b.reload(), 'conversation.updated': () => void b.reload() });
   if (b.loading && !b.data) return <Loading />;
   if (!b.data) return <div className="page"><ErrorBox error={b.error} /></div>;
   const { client, latest, findings, investigations, records, appointments, outbox, followups, medicines } = b.data;
@@ -135,6 +135,7 @@ export function ClientDetail() {
         <div>
           <Link to="/app/clients" className="small">← {T.clients}</Link>
           <h1>{client.name}</h1>
+          {client.conversation_id && <Link className="btn sm" to={`/app/inbox/${client.conversation_id}`}>Open linked conversation</Link>}
           <p>
             {client.birth_year ? `${new Date().getFullYear() - client.birth_year} y · ` : ''}
             {client.sex ? `${client.sex} · ` : ''}

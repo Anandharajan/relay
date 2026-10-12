@@ -5,7 +5,10 @@ import { z } from 'zod';
 import { config } from '../config.ts';
 import { ctx } from '../ctx.ts';
 import { signJwt, uuid, verifyJwt } from '../lib/crypto.ts';
-import { subscribe, type RelayEvent } from '../lib/events.ts';
+import { publish, subscribe, type RelayEvent } from '../lib/events.ts';
+import { patientContext } from '../services/patient-context.ts';
+import { getBlobStore } from '../adapters/blob.ts';
+import { enqueue } from '../jobs/runner.ts';
 import { rateLimit } from '../lib/ratelimit.ts';
 import { body, fail } from '../http.ts';
 import { getOrg, getOrgBySiteKey, type Org } from '../services/orgs.ts';
@@ -73,7 +76,7 @@ widget.post('/session', async (c) => {
   visitorId ??= `v_${uuid().replace(/-/g, '').slice(0, 16)}`;
   const token = await signJwt({ sub: visitorId, org: org.id, typ: 'visitor' }, '180d');
   const s = org.settings;
-  return c.json({ token, visitorId, config: { name: org.name, botName: s.botName, brandColor: s.brandColor, greeting: s.greeting, consentText: s.consentText } });
+  return c.json({ token, visitorId, config: { name: org.name, botName: s.botName, brandColor: s.brandColor, greeting: s.greeting, consentText: s.consentText, reportUploads: s.vertical === 'healthcare' } });
 });
 
 widget.get('/conversation', async (c) => {
@@ -97,6 +100,32 @@ widget.post('/messages', async (c) => {
   if (!conv) conv = await createConversation(org, visitorId, 'web', { name: b.name, meta: { pageUrl: b.pageUrl, userAgent: c.req.header('user-agent')?.slice(0, 200) } });
   const msg = await handleCustomerMessage(org, conv, b.content);
   return c.json({ conversationId: conv.id, message: publicMessage(msg) });
+});
+
+/** Attach only to the patient linked to this authenticated visitor's own conversation. */
+widget.post('/records', async (c) => {
+  await visitorAuth(c);
+  const org = c.get('org');
+  if (!rateLimit(`upload:${org.id}:${c.get('visitorId')}`, 10, 10 * 60_000).ok) fail(429, 'Too many uploads; please wait.');
+  const form = await c.req.parseBody();
+  const conv = await visitorConversation(c, typeof form.conversationId === 'string' ? form.conversationId : undefined);
+  if (!conv) fail(409, 'Book an appointment before attaching a report.');
+  const context = await patientContext(org, conv.id);
+  if (!context?.appointment) fail(409, 'Book an appointment so the clinic can link your report to your visit.');
+  const file = form.file;
+  if (!(file instanceof File)) fail(400, 'Attach a file.');
+  if (!/\.(pdf|docx|txt|jpe?g|png|heic|webp)$/i.test(file.name)) fail(400, 'Upload a PDF, photo, text or Word document.');
+  if (!file.size || file.size > 10 * 1024 * 1024) fail(400, 'Files must be between 1 byte and 10 MB.');
+  const id = uuid();
+  const title = file.name.slice(0, 200);
+  const key = `org/${org.id}/records/${id}-${title.replace(/[^\w.\-]/g, '_')}`;
+  await getBlobStore().put(key, new Uint8Array(await file.arrayBuffer()), file.type || 'application/octet-stream');
+  await ctx.db.query(`insert into records (id, org_id, client_id, title, blob_key, uploaded_by) values ($1,$2,$3,$4,$5,'patient')`, [id, org.id, context.client.id, title, key]);
+  await addMessage(conv, 'customer', `Attached report: ${title}`, { meta: { recordId: id, attachment: true } });
+  await enqueue('record_process', { recordId: id });
+  publish(`org:${org.id}`, 'records.updated', { clientId: context.client.id, conversationId: conv.id });
+  publish(`org:${org.id}`, 'attention', { clientId: context.client.id, conversationId: conv.id, reason: 'report_uploaded' });
+  return c.json({ ok: true, recordId: id });
 });
 
 widget.post('/feedback', async (c) => {

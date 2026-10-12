@@ -98,6 +98,7 @@ workspace.get('/model', async (c) => {
     model: s.model,
     baseUrl: s.base_url,
     keyHint: s.key_hint,
+    connected: !providerCatalog.find(p => p.id === s.provider)?.needsKey || Boolean(s.key_enc),
     monthlyBudgetInr: s.monthly_budget_inr,
     providers: providerCatalog,
     platformDefault: config.defaultLlm.provider === 'extractive' ? 'Extractive (no LLM)' : `${config.defaultLlm.provider}${config.defaultLlm.model ? ` · ${config.defaultLlm.model}` : ''}`,
@@ -135,6 +136,7 @@ workspace.post('/model/test', requireRole('admin'), async (c) => {
   const org = c.get('org');
   const s = await getModelSettings(org.id);
   const { decrypt } = await import('../lib/crypto.ts');
+  if (providerCatalog.find(p => p.id === s.provider)?.needsKey && !s.key_enc) return c.json({ ok: false, message: 'Save your API key privately to connect this provider. The assistant currently uses the extractive fallback.' });
   try {
     const llm = createLlm({ provider: s.provider, model: s.model, baseUrl: s.base_url, apiKey: s.key_enc ? decrypt(s.key_enc) : null });
     if (!llm) return c.json({ ok: true, message: 'Extractive engine: no LLM call needed.' });

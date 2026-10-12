@@ -1,7 +1,7 @@
 import { config } from '../config.ts';
 import { ctx } from '../ctx.ts';
 import { decrypt, token, uuid } from '../lib/crypto.ts';
-import { createLlm, type Llm } from '../adapters/llm.ts';
+import { createLlm, providerCatalog, type Llm } from '../adapters/llm.ts';
 
 export interface OrgSettings {
   botName: string;
@@ -111,9 +111,10 @@ export async function getModelSettings(orgId: string): Promise<ModelSettings> {
 }
 
 /** Resolve the org's model. Returns null when the extractive engine should answer. */
-export async function llmForOrg(orgId: string): Promise<{ llm: Llm | null; byok: boolean; budgetExceeded: boolean }> {
+export async function llmForOrg(orgId: string): Promise<{ llm: Llm | null; byok: boolean; budgetExceeded: boolean; keyMissing?: boolean }> {
   const s = await getModelSettings(orgId);
   const byok = s.provider !== 'default' && s.provider !== 'extractive';
+  if (providerCatalog.find(p => p.id === s.provider)?.needsKey && !s.key_enc) return { llm: null, byok: false, budgetExceeded: false, keyMissing: true };
   let budgetExceeded = false;
   if (s.monthly_budget_inr) {
     const spent = await ctx.db.one<{ c: number }>(

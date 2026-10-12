@@ -14,7 +14,8 @@ export function Try() {
       .then(async () => {
         closeStream();
         await refresh();
-        nav('/app', { replace: true });
+        const conversation = new URLSearchParams(window.location.search).get('conversation');
+        nav(conversation && /^[0-9a-f-]{36}$/i.test(conversation) ? `/app/inbox/${conversation}` : '/app', { replace: true });
       })
       .catch((e) => setError((e as Error).message));
   }, []);

@@ -25,6 +25,15 @@ const tries = [
 /** A fictional Chennai hospital website with the Relay assistant installed, for the live demo. */
 export function DemoStore() {
   const [siteKey, setSiteKey] = useState<string | null | undefined>(undefined);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  useEffect(() => {
+    const onConversation = (event: Event) => {
+      const id = (event as CustomEvent).detail?.conversationId;
+      if (typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)) setConversationId(id);
+    };
+    window.addEventListener('relay:conversation', onConversation);
+    return () => window.removeEventListener('relay:conversation', onConversation);
+  }, []);
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('relay-demo-theme') || 'system'; } catch { return 'system'; }
   });
@@ -40,7 +49,7 @@ export function DemoStore() {
   useEffect(() => {
     if (!siteKey) return;
     const s = document.createElement('script');
-    s.src = '/widget.js?hospital-theme=2';
+    s.src = '/widget.js?hospital-agent=1';
     s.dataset.theme = document.querySelector<HTMLElement>('.hospital')?.dataset.theme || 'system';
     s.async = true;
     s.onload = () => {
@@ -102,7 +111,7 @@ export function DemoStore() {
           </div>
           <p className="small">
             Lab IDs like <code>LAB-2041</code> work. Then see the hospital's side:{' '}
-            <a href="/try" target="_blank" rel="noreferrer"><strong>open the staff dashboard ↗</strong></a> (live queue, doctor brief, AI findings, approvals). Read-only, no sign-up.
+            <a href={conversationId ? `/try?conversation=${conversationId}` : '/try'} target="_blank" rel="noreferrer"><strong>{conversationId ? 'see this chat in the staff dashboard ↗' : 'open the staff dashboard ↗'}</strong></a> (live queue, doctor brief, AI findings, approvals). Read-only, no sign-up.
           </p>
           {siteKey === null && <div className="error-box">The demo workspace isn't seeded on this server (set DEMO_SEED=true).</div>}
         </div>

@@ -6,6 +6,7 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
+import { createServer } from 'node:http';
 
 const PORT = 8791;
 process.env.PORT = String(PORT);
@@ -350,6 +351,97 @@ test('analytics and DPDP export/erase', async () => {
   assert.equal(erased.data.deleted, 1);
   const audit = await api('GET', '/api/workspace/audit');
   assert.ok(audit.data.some((x: any) => x.action === 'privacy.erased'));
+});
+
+test('patient chat collects reports, links staff context and isolates visitor identity', async () => {
+  const pub = await api('GET', '/api/public/config');
+  const s = await api('POST', '/widget/session', { siteKey: pub.data.demoSiteKey });
+  const W = { authorization: `Bearer ${s.data.token}` };
+  let id: string;
+  const send = async (content: string, count: number) => {
+    const r = await api('POST', '/widget/messages', { content, conversationId: id }, W);
+    id = r.data.conversationId;
+    return waitFor(async () => {
+      const t = (await api('GET', '/widget/conversation', undefined, W)).data;
+      const replies = t.messages.filter((m: any) => m.role === 'ai');
+      return replies.length >= count && replies[count - 1].content;
+    }, 'patient reply');
+  };
+  assert.match(await send('book appointment with Dr. Narmadha Vasu', 1), /Narmadha/);
+  await send('1', 2);
+  await send('Synthetic Upload Patient 9876501234', 3);
+  const detail = (await api('GET', `/api/inbox/conversations/${id!}`)).data;
+  assert.ok(detail.patient.client.id);
+  assert.equal(detail.patient.appointment.staff_name, 'Dr. Narmadha Vasu');
+  assert.equal(detail.conversation.meta.clientId, detail.patient.client.id);
+  const { ctx } = await import('../src/ctx.ts');
+  const other = await ctx.db.one(`select id from clients where name = 'Test Patient Kumar'`);
+  assert.notEqual(detail.patient.client.id, other?.id); // same phone must not join another visitor's record
+  assert.match(await send('I want to upload a report', 4), /Attach report|visit page/);
+  const form = new FormData(); form.set('conversationId', id!);
+  form.set('file', new Blob(['Synthetic only\nHbA1c 5.2 % 4.0 - 5.6'], { type: 'text/plain' }), 'chat-report.txt');
+  const r = await fetch(base + '/widget/records', { method: 'POST', headers: W, body: form });
+  assert.equal(r.status, 200);
+  await waitFor(async () => {
+    const d = (await api('GET', `/api/inbox/conversations/${id!}`)).data;
+    return d.patient.records.some((x: any) => x.title === 'chat-report.txt' && x.status === 'processed');
+  }, 'chat report ingested');
+  const outsider = (await api('POST', '/widget/session', { siteKey: pub.data.demoSiteKey })).data;
+  const attack = new FormData(); attack.set('conversationId', id!); attack.set('file', new Blob(['test']), 'other.txt');
+  assert.equal((await fetch(base + '/widget/records', { method: 'POST', headers: { authorization: `Bearer ${outsider.token}` }, body: attack })).status, 404);
+});
+
+test('burst messages give one consolidated reply and unrelated requests are flagged', async () => {
+  const pub = (await api('GET', '/api/public/config')).data;
+  const s = (await api('POST', '/widget/session', { siteKey: pub.demoSiteKey })).data;
+  const W = { authorization: `Bearer ${s.token}` };
+  const sent = await api('POST', '/widget/messages', { content: 'What is the consultation fee?' }, W);
+  const id = sent.data.conversationId;
+  await api('POST', '/widget/messages', { content: 'What is the consultation fee?', conversationId: id }, W);
+  await waitFor(async () => (await api('GET', '/widget/conversation', undefined, W)).data.messages.some((m: any) => m.role === 'ai'), 'consolidated reply');
+  await sleep(450);
+  assert.equal((await api('GET', '/widget/conversation', undefined, W)).data.messages.filter((m: any) => m.role === 'ai').length, 1);
+  await api('POST', '/widget/messages', { content: 'write me a poem', conversationId: id }, W);
+  await waitFor(async () => (await api('GET', `/api/inbox/conversations/${id}`)).data.conversation.meta.reviewFlag === 'off_topic', 'off-topic flag');
+  assert.ok((await api('GET', '/api/inbox/conversations?view=attention')).data.conversations.some((c: any) => c.id === id));
+  assert.equal((await api('POST', `/api/inbox/conversations/${id}/clear-flag`, {})).status, 200);
+});
+
+test('Gemini BYOK routes redacted questions and rejects uncited model answers', async () => {
+  let cited = true;
+  let received = '';
+  const model = createServer(async (req, res) => {
+    let text = ''; for await (const chunk of req) text += chunk;
+    received = text;
+    assert.equal(req.headers.authorization, 'Bearer local-gemini-test-key');
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ model: 'gemini-2.5-flash', choices: [{ message: { content: JSON.stringify({ answer: 'Consultation is ₹500.', cited: cited ? [1] : [], confidence: .95, handoff: false }) } }], usage: { prompt_tokens: 100, completion_tokens: 20 } }));
+  });
+  await new Promise<void>(resolve => model.listen(0, '127.0.0.1', resolve));
+  try {
+    await api('PUT', '/api/workspace/model', { provider: 'gemini', apiKey: 'local-gemini-test-key', baseUrl: `http://127.0.0.1:${(model.address() as AddressInfo).port}/v1` });
+    const first = await api('POST', '/api/knowledge/ask', { question: 'my number is 9876543210. What is the consultation fee?' });
+    assert.equal(first.data.kind, 'answer');
+    assert.match(first.data.engine, /gemini/);
+    assert.ok(first.data.citations.length);
+    assert.ok(!received.includes('9876543210'));
+    cited = false;
+    const invalid = await api('POST', '/api/knowledge/ask', { question: 'What are consultation fees for new patients?' });
+    assert.equal(invalid.data.kind, 'handoff');
+  } finally {
+    await api('PUT', '/api/workspace/model', { provider: 'extractive' });
+    await new Promise<void>(resolve => model.close(() => resolve()));
+  }
+});
+
+test('Gemini without a key uses a visible safe fallback', async () => {
+  await api('PUT', '/api/workspace/model', { provider: 'gemini', model: 'gemini-2.5-flash' });
+  assert.equal((await api('GET', '/api/workspace/model')).data.connected, false);
+  assert.equal((await api('POST', '/api/workspace/model/test', {})).data.ok, false);
+  const q = await api('POST', '/api/knowledge/ask', { question: 'What is the consultation fee?' });
+  assert.equal(q.data.kind, 'answer');
+  assert.match(q.data.engine, /BYOK key required/);
+  await api('PUT', '/api/workspace/model', { provider: 'extractive' });
 });
 
 test('BYOK keys are encrypted and never returned', async () => {

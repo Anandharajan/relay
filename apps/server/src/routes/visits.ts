@@ -236,7 +236,7 @@ visits.get('/approvals', async (c) => {
   return c.json({ messages, findings });
 });
 
-visits.post('/outbox/:id/approve', async (c) => {
+visits.post('/outbox/:id/approve', requireRole('admin'), async (c) => {
   const b = await body(c, z.object({ body: z.string().min(1).max(2000).optional() }));
   const org = c.get('org');
   const row = await ctx.db.one<{ meta: any }>(`select meta from outbox where id = $1 and org_id = $2 and status = 'pending_approval'`, [c.req.param('id'), org.id]);
@@ -253,7 +253,7 @@ visits.post('/outbox/:id/discard', async (c) => {
   return c.json({ ok: true });
 });
 
-visits.post('/findings/:id/review', async (c) => {
+visits.post('/findings/:id/review', requireRole('admin'), async (c) => {
   const org = c.get('org');
   const b = await body(c, z.object({ action: z.enum(['acknowledge', 'dismiss']) }));
   await ctx.db.query(`update findings set status = $3, reviewed_by = $4, reviewed_at = now() where id = $1 and org_id = $2`, [

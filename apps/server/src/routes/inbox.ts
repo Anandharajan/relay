@@ -5,8 +5,9 @@ import { ctx } from '../ctx.ts';
 import { heartbeat, listPresence, subscribe, type RelayEvent } from '../lib/events.ts';
 import { body, fail, requireOrg, requireUser, type AppEnv } from '../http.ts';
 import { answer } from '../engine/answer.ts';
+import { patientContext } from '../services/patient-context.ts';
 import {
-  addMessage, createDraft, decideActionRun, decideDraft, getConversation, history, learn, resolve, setStatus,
+  addMessage, createDraft, decideActionRun, decideDraft, getConversation, history, learn, patchMeta, resolve, setStatus,
 } from '../services/conversations.ts';
 
 export const inbox = new Hono<AppEnv>();
@@ -14,7 +15,7 @@ inbox.use(requireUser, requireOrg);
 
 const views: Record<string, string> = {
   open: `status in ('ai', 'escalated', 'human')`,
-  attention: `(status = 'escalated' or exists (select 1 from ai_drafts d where d.conversation_id = c.id and d.status = 'pending'))`,
+  attention: `(status = 'escalated' or c.meta->>'reviewFlag' is not null or exists (select 1 from ai_drafts d where d.conversation_id = c.id and d.status = 'pending'))`,
   ai: `status = 'ai'`,
   human: `status = 'human'`,
   resolved: `status = 'resolved'`,
@@ -41,7 +42,7 @@ inbox.get('/conversations', async (c) => {
   );
   const counts = await ctx.db.one(
     `select count(*) filter (where status in ('ai','escalated','human'))::int as open,
-            count(*) filter (where status = 'escalated' or exists (select 1 from ai_drafts d where d.conversation_id = c.id and d.status = 'pending'))::int as attention,
+            count(*) filter (where status = 'escalated' or c.meta->>'reviewFlag' is not null or exists (select 1 from ai_drafts d where d.conversation_id = c.id and d.status = 'pending'))::int as attention,
             count(*) filter (where status = 'ai')::int as ai, count(*) filter (where status = 'human')::int as human,
             count(*) filter (where status = 'resolved')::int as resolved
        from conversations c where org_id = $1`,
@@ -60,7 +61,8 @@ inbox.get('/conversations/:id', async (c) => {
     ctx.db.query(`select r.*, a.name as action_name, a.sensitive from action_runs r join actions a on a.id = r.action_id where r.conversation_id = $1 order by r.created_at`, [conv.id]),
     ctx.db.query(`select purpose, granted_at from consents where org_id = $1 and visitor_id = $2`, [org.id, conv.visitor_id]),
   ]);
-  return c.json({ conversation: conv, messages, drafts, actionRuns, consents });
+  const patient = org.settings.vertical === 'healthcare' ? await patientContext(org, conv.id) : null;
+  return c.json({ conversation: conv, messages, drafts, actionRuns, consents, patient });
 });
 
 async function load(c: any) {
@@ -120,6 +122,12 @@ inbox.post('/conversations/:id/handback', async (c) => {
   await setStatus(conv, 'ai');
   await ctx.db.query('update conversations set assigned_to = null where id = $1', [conv.id]);
   await addMessage(conv, 'system', `${c.get('user').name} handed the conversation back to AI`);
+  return c.json({ ok: true });
+});
+
+inbox.post('/conversations/:id/clear-flag', async (c) => {
+  const conv = await load(c);
+  await patchMeta(conv, { reviewFlag: null });
   return c.json({ ok: true });
 });
 

@@ -1,6 +1,7 @@
 export const styles = `
 :host { all: initial; --brand: #4f46e5; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", "Noto Sans Kannada", sans-serif; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 :host { --w-surface: #fff; --w-log: #f9fafb; --w-text: #111827; --w-muted: #4b5563; --w-border: #d1d5db; --w-cite: #eef2ff; --w-cite-text: #3730a3; color-scheme: light; }
 :host([data-theme="dark"]) { --w-surface: #142923; --w-log: #0c1917; --w-text: #edf8f4; --w-muted: #b4cec5; --w-border: #48665d; --w-cite: #203a33; --w-cite-text: #7ee4cf; color-scheme: dark; }
 @media (prefers-color-scheme: dark) {

@@ -174,6 +174,7 @@ function Model() {
           {data.providers.map((p: any) => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
       </Field>
+      {data.connected === false && <p className="error-box">The saved provider needs an API key. The assistant is using the extractive fallback until you save a key and test the connection.</p>}
       {form.provider === 'default' && <p className="small muted">Platform default on this server: <strong>{data.platformDefault}</strong></p>}
       {form.provider === 'extractive' && <p className="small muted">No LLM: answers are extracted verbatim from your knowledge base, with citations. Free, offline, zero hallucination — but it can't rephrase or translate.</p>}
       {!['default', 'extractive'].includes(form.provider) && (

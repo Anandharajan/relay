@@ -98,6 +98,7 @@ export async function setStatus(conv: Conversation, status: Conversation['status
 export async function patchMeta(conv: Conversation, patch: Record<string, unknown>) {
   conv.meta = { ...conv.meta, ...patch };
   await ctx.db.query('update conversations set meta = $2::jsonb where id = $1', [conv.id, conv.meta]);
+  publish(`org:${conv.org_id}`, 'conversation.updated', { id: conv.id, meta: conv.meta });
 }
 
 export async function history(convId: string, limit = 12): Promise<HistoryTurn[]> {
@@ -124,11 +125,42 @@ export async function resolve(conv: Conversation, by: 'ai' | 'human', csat?: num
 }
 
 /** Entry point for every inbound customer message, from any channel. */
+const inbound = new Map<string, { messages: string[]; running: boolean; timer?: ReturnType<typeof setTimeout> }>();
+
+/** Coalesce a short burst, then drain sequentially so a second turn never uses stale booking state. */
+function scheduleAi(org: Org, conv: Conversation, content: string) {
+  const entry = inbound.get(conv.id) ?? { messages: [], running: false };
+  entry.messages.push(content);
+  inbound.set(conv.id, entry);
+  if (entry.running) return;
+  if (entry.timer) clearTimeout(entry.timer);
+  entry.timer = setTimeout(async () => {
+    entry.running = true;
+    try {
+      while (entry.messages.length) {
+        const burst = entry.messages.splice(0);
+        const texts = [...new Set(burst)];
+        const current = await getConversation(org.id, conv.id);
+        if (!current || current.status !== 'ai') break;
+        if (texts.length < burst.length) await patchMeta(current, { reviewFlag: 'repeated_message' });
+        await runAi(org, current, texts.join('\n'));
+      }
+    } catch (e) {
+      console.error('[ai] failed', e);
+      const current = await getConversation(org.id, conv.id);
+      if (current) {
+        await setStatus(current, 'escalated');
+        publish(`org:${org.id}`, 'attention', { conversationId: conv.id, reason: 'assistant_failed' });
+      }
+    } finally { inbound.delete(conv.id); }
+  }, 350);
+}
+
 export async function handleCustomerMessage(org: Org, conv: Conversation, content: string): Promise<Message> {
   if (conv.status === 'resolved') await setStatus(conv, 'ai');
   const msg = await addMessage(conv, 'customer', content);
   if (conv.status === 'ai') {
-    runAi(org, conv, content).catch((e) => console.error('[ai] failed', e));
+    scheduleAi(org, conv, content);
   } else {
     publish(`org:${org.id}`, 'attention', { conversationId: conv.id, reason: 'customer_replied' });
   }
@@ -146,6 +178,11 @@ export async function runAi(org: Org, conv: Conversation, content: string): Prom
 
   if (out.lang !== conv.lang) await ctx.db.query('update conversations set lang = $2 where id = $1', [conv.id, out.lang]);
   if (out.metaPatch) await patchMeta(conv, out.metaPatch);
+  await patchMeta(conv, {
+    agent: { ...conv.meta.agent, intent: out.reason || out.metaPatch?.agent && (out.metaPatch.agent as any).intent || out.kind, summary: truncate(out.text, 600),
+      nextAction: out.kind === 'handoff' ? 'staff_reply' : conv.meta.agent?.nextAction || 'patient_reply', engine: out.engine,
+      updatedAt: new Date().toISOString() },
+  });
   await addUsage(org.id, { ai_messages: 1, tokens: out.tokens, cost_inr: out.costInr });
   const aiMeta = { kind: out.kind, engine: out.engine, reason: out.reason, action: out.action ? { name: out.action.name, ok: out.action.ok } : undefined };
 
