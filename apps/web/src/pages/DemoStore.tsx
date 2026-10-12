@@ -28,6 +28,10 @@ export function DemoStore() {
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('relay-demo-theme') || 'system'; } catch { return 'system'; }
   });
+  useEffect(() => {
+    const host = document.getElementById('relay-widget');
+    if (host) host.dataset.theme = theme;
+  }, [theme]);
 
   useEffect(() => {
     api<{ demoSiteKey: string | null }>('/api/public/config').then((c) => setSiteKey(c.demoSiteKey), () => setSiteKey(null));
@@ -38,6 +42,10 @@ export function DemoStore() {
     const s = document.createElement('script');
     s.src = '/widget.js';
     s.async = true;
+    s.onload = () => {
+      const host = document.getElementById('relay-widget');
+      if (host) host.dataset.theme = document.querySelector<HTMLElement>('.hospital')?.dataset.theme || 'system';
+    };
     s.dataset.siteKey = siteKey;
     s.dataset.open = window.innerWidth > 700 ? 'true' : 'false';
     document.body.appendChild(s);
