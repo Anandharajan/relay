@@ -161,6 +161,7 @@ export function AgentConsole({ mode, extraExamples = [], placeholder }: { mode: 
             <button className="btn primary" disabled={busy || (!text.trim() && !file)}>{busy ? 'Agents working…' : 'Run agents →'}</button>
           </div>
         </div>
+        <p className="small muted">Preview only: no booking, staff alert or patient message is created. {mode === 'public' ? 'Use fictional data only; do not upload real patient reports.' : 'Save reports through Patients for clinical review.'}</p>
         {error && <div className="error-box">{error}</div>}
       </form>
 

@@ -510,10 +510,12 @@ test('agent pipelines: public message/report runs stream to done; day brief need
   const em = await run('/api/public/runs', 'My father has chest pain and is sweating');
   assert.match(em.report.find((s: any) => s.id === 'reply').body, /108/);
   assert.equal(em.agents.find((a: any) => a.id === 'knowledge').status, 'skipped');
+  assert.match(em.report.find((s: any) => s.id === 'next').items.join(' '), /no staff alert/);
   const rep = await run('/api/public/runs', 'Potassium 6.9 mmol/L 3.5 - 5.1\nHbA1c 9.0 % 4.0 - 5.6\nTab. Metformin 500 mg');
   assert.equal(rep.kind, 'report');
   assert.ok(rep.report.find((s: any) => s.id === 'critical'));
   assert.ok(rep.report.find((s: any) => s.id === 'draft'));
+  assert.match(rep.report.find((s: any) => s.id === 'note').body, /no approval request is created/);
   // "Brief me on today" is a normal message for the public; staff get the day pipeline.
   const pub = await run('/api/public/runs', 'Brief me on today');
   assert.equal(pub.kind, 'message');

@@ -237,14 +237,14 @@ async function runMessage(org: Org, r: PipelineRun, text: string) {
   if (safety?.emergency || safety?.advice) {
     skip(r, ['knowledge', 'booking', 'lookup'], 'Stopped by the safety agent');
     const reply = safety.emergency ? t('emergency', L, { number: org.settings.emergencyNumber || '108' }) : t('noMedicalAdvice', L, { number: org.settings.emergencyNumber || '108' });
-    await agent(r, 'composer', async () => ({ result: safety.emergency ? 'Emergency reply + staff alert' : 'Safe hand-off to the clinical team' }));
+    await agent(r, 'composer', async () => ({ result: safety.emergency ? 'Emergency reply preview; staff alert required' : 'Clinical hand-off preview' }));
     section(r, { id: 'reply', title: 'Reply', kind: 'reply', tone: safety.emergency ? 'bad' : 'warn', body: reply });
     await agent(r, 'reviewer', async () => ({ result: 'No diagnosis, dose or interpretation given ✓' }));
     section(r, {
       id: 'next', title: 'What happens next', kind: 'list',
       items: safety.emergency
-        ? ['The team is alerted immediately (marked urgent in the inbox).', `The person is told to call ${org.settings.emergencyNumber || '108'} now.`, 'No AI advice is given.']
-        : ['A doctor or nurse answers in the same chat.', 'The question waits in the inbox as “Needs you”.'],
+        ? ['Preview only: no staff alert or inbox conversation was created. Contact the clinical team directly.', `Call ${org.settings.emergencyNumber || '108'} now.`, 'No AI advice is given.']
+        : ['Preview only: no message was sent to a doctor or nurse.', 'Use patient chat to create a conversation for staff.'],
     });
     return;
   }
@@ -311,8 +311,8 @@ async function runMessage(org: Org, r: PipelineRun, text: string) {
     items: slots?.length
       ? ['The person replies with a number; the booking agent confirms, issues a token and a visit link.', 'Reminders and any doctor-approved preparation instructions are scheduled automatically.']
       : tone === 'warn'
-        ? ['The conversation goes to the team inbox with the AI’s best draft attached.', 'When staff answer, the answer can be saved as new knowledge.']
-        : ['Sent straight away on WhatsApp or web chat.', 'If the person replies “talk to a human”, the team takes over.'],
+        ? ['Preview only: this draft has not been added to the team inbox.', 'Use patient chat to create a conversation for staff.']
+        : ['Preview only: this reply has not been sent on WhatsApp or web chat.', 'Use patient chat to start a conversation with the team.'],
   });
 }
 
@@ -390,7 +390,7 @@ async function runReport(org: Org, r: PipelineRun, text: string) {
     }),
   ]);
   if (critical?.length) {
-    section(r, { id: 'critical', title: 'Needs same-day review', kind: 'callout', tone: 'bad', body: critical.map((c) => `${c.label} ${Math.round(c.value * 100) / 100} ${c.unit}`).join(' · ') + '. The doctor is alerted immediately.' });
+    section(r, { id: 'critical', title: 'Needs same-day review', kind: 'callout', tone: 'bad', body: critical.map((c) => `${c.label} ${Math.round(c.value * 100) / 100} ${c.unit}`).join(' · ') + '. Preview only: no doctor has been alerted. Contact the clinical team directly.' });
   }
 
   const [tests, draft] = await Promise.all([
@@ -417,7 +417,7 @@ async function runReport(org: Org, r: PipelineRun, text: string) {
           ? `வணக்கம், உங்கள் சமீபத்திய பரிசோதனை முடிவுகளை மருத்துவர் பார்த்தார். இது குறித்து உங்களுடன் பேச விரும்புகிறார். ${urgent ? 'இன்றே மருத்துவமனையை அழைக்கவும்.' : 'உங்கள் அடுத்த வருகையில் விவாதிப்போம்.'}`
           : `Hello, your doctor has reviewed your recent test results and would like to discuss them with you. ${urgent ? 'Please call the hospital today.' : 'We will go over them at your next visit.'}`;
       if (asksMedicalAdvice(body)) throw new Error('Draft contained advice and was blocked');
-      return { result: 'Draft ready, waiting for doctor approval', value: body };
+      return { result: 'Draft preview ready; not submitted for approval', value: body };
     }),
   ]);
 
@@ -433,8 +433,8 @@ async function runReport(org: Org, r: PipelineRun, text: string) {
     return { result: `${lines.length} line brief` };
   });
   if (tests?.length) section(r, { id: 'tests', title: 'Suggested investigations (doctor decides)', kind: 'list', items: tests });
-  if (draft) section(r, { id: 'draft', title: 'Message to the patient: waiting for doctor approval', kind: 'reply', tone: 'info', body: draft });
-  section(r, { id: 'note', title: 'Safety', kind: 'callout', tone: 'info', body: 'Agents flag and organise; they do not diagnose. Nothing reaches the patient until a doctor approves it.' });
+  if (draft) section(r, { id: 'draft', title: 'Patient message preview: not submitted for approval', kind: 'reply', tone: 'info', body: draft });
+  section(r, { id: 'note', title: 'Safety', kind: 'callout', tone: 'info', body: 'Preview only: this report is not saved to a patient, no approval request is created and no message is sent. Use Patients to save a report for clinical review. Agents flag and organise; they do not diagnose.' });
 }
 
 // ── day brief (staff) ────────────────────────────────────────────────────────────────────────────
