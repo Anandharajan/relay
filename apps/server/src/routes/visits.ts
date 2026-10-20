@@ -12,6 +12,7 @@ import {
 } from '../services/visits.ts';
 import { brief, flagFor, runFindings, TESTS } from '../services/records.ts';
 import { handleDigit, placeCall } from '../services/calls.ts';
+import { awaitingReview, canSignOff, markReviewed, reviewCount } from '../services/review.ts';
 import { enqueue } from '../jobs/runner.ts';
 
 /** Dashboard API for the visits layer and the healthcare pack. */
@@ -26,7 +27,20 @@ const staffSchema = z.object({
   avgMinutes: z.number().int().min(3).max(240).default(15),
   schedule: z.object({ days: z.array(z.number().int().min(0).max(6)).min(1), start: hhmm, end: hhmm }),
   active: z.boolean().default(true),
+  userId: z.string().uuid().nullable().optional(),
 });
+
+/** A staff calendar may only be linked to a login that belongs to this workspace. */
+async function assertMember(orgId: string, userId: string | null | undefined) {
+  if (!userId) return;
+  const m = await ctx.db.one('select 1 from members where org_id = $1 and user_id = $2', [orgId, userId]);
+  if (!m) fail(400, 'That login is not a member of this workspace');
+}
+
+/** Owners/admins, or the doctor linked to this patient, may sign off clinical work. */
+async function requireSignOff(c: any, clientId: string) {
+  if (!(await canSignOff(c.get('org').id, { id: c.get('user').id, role: c.get('role') }, clientId))) fail(403, 'Only an admin or this patient’s doctor can sign this off');
+}
 
 // ── staff ────────────────────────────────────────────────────────────────────
 visits.get('/staff', async (c) => c.json(await listStaff(c.get('org').id, false)));
@@ -36,10 +50,11 @@ visits.post('/staff', requireRole('admin'), async (c) => {
   const b = await body(c, staffSchema);
   const count = await ctx.db.one<{ c: number }>('select count(*)::int as c from staff_members where org_id = $1 and active', [org.id]);
   if (config.mode === 'cloud' && (count?.c ?? 0) >= planOf(org).staff) fail(403, `Your plan includes ${planOf(org).staff} staff calendars. Upgrade to add more.`);
+  await assertMember(org.id, b.userId);
   const id = uuid();
   await ctx.db.query(
-    `insert into staff_members (id, org_id, name, specialty, languages, avg_minutes, schedule, active) values ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb, $8)`,
-    [id, org.id, b.name, b.specialty, b.languages, b.avgMinutes, b.schedule, b.active],
+    `insert into staff_members (id, org_id, name, specialty, languages, avg_minutes, schedule, active, user_id) values ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb, $8, $9)`,
+    [id, org.id, b.name, b.specialty, b.languages, b.avgMinutes, b.schedule, b.active, b.userId ?? null],
   );
   await audit(org.id, c.get('user').id, 'staff.created', id, { name: b.name });
   return c.json({ id });
@@ -50,8 +65,10 @@ visits.patch('/staff/:id', requireRole('admin'), async (c) => {
   const b = await body(c, staffSchema.partial());
   const s = await ctx.db.one<Staff>('select * from staff_members where id = $1 and org_id = $2', [c.req.param('id'), org.id]);
   if (!s) fail(404, 'Not found');
-  await ctx.db.query(`update staff_members set name = $3, specialty = $4, languages = $5::jsonb, avg_minutes = $6, schedule = $7::jsonb, active = $8 where id = $1 and org_id = $2`, [
+  await assertMember(org.id, b.userId);
+  await ctx.db.query(`update staff_members set name = $3, specialty = $4, languages = $5::jsonb, avg_minutes = $6, schedule = $7::jsonb, active = $8, user_id = $9 where id = $1 and org_id = $2`, [
     s.id, org.id, b.name ?? s.name, b.specialty ?? s.specialty, b.languages ?? s.languages, b.avgMinutes ?? s.avg_minutes, b.schedule ?? s.schedule, b.active ?? s.active,
+    b.userId === undefined ? s.user_id : b.userId,
   ]);
   return c.json({ ok: true });
 });
@@ -236,11 +253,12 @@ visits.get('/approvals', async (c) => {
   return c.json({ messages, findings });
 });
 
-visits.post('/outbox/:id/approve', requireRole('admin'), async (c) => {
+visits.post('/outbox/:id/approve', async (c) => {
   const b = await body(c, z.object({ body: z.string().min(1).max(2000).optional() }));
   const org = c.get('org');
-  const row = await ctx.db.one<{ meta: any }>(`select meta from outbox where id = $1 and org_id = $2 and status = 'pending_approval'`, [c.req.param('id'), org.id]);
+  const row = await ctx.db.one<{ meta: any; client_id: string }>(`select meta, client_id from outbox where id = $1 and org_id = $2 and status = 'pending_approval'`, [c.req.param('id'), org.id]);
   if (!row) fail(404, 'Nothing to approve');
+  await requireSignOff(c, row.client_id);
   await approveMessage(org.id, c.req.param('id'), c.get('user').name, b.body);
   const ids: string[] = row.meta?.findingIds ?? (row.meta?.findingId ? [row.meta.findingId] : []);
   if (ids.length) await ctx.db.query(`update findings set status = 'shared', reviewed_by = $2, reviewed_at = now() where id::text in (select jsonb_array_elements_text($1::jsonb)) and status in ('open', 'acknowledged')`, [ids, c.get('user').name]);
@@ -253,13 +271,38 @@ visits.post('/outbox/:id/discard', async (c) => {
   return c.json({ ok: true });
 });
 
-visits.post('/findings/:id/review', requireRole('admin'), async (c) => {
+visits.post('/findings/:id/review', async (c) => {
   const org = c.get('org');
   const b = await body(c, z.object({ action: z.enum(['acknowledge', 'dismiss']) }));
+  const f = await ctx.db.one<{ client_id: string }>('select client_id from findings where id = $1 and org_id = $2', [c.req.param('id'), org.id]);
+  if (!f) fail(404, 'Not found');
+  await requireSignOff(c, f.client_id);
   await ctx.db.query(`update findings set status = $3, reviewed_by = $4, reviewed_at = now() where id = $1 and org_id = $2`, [
     c.req.param('id'), org.id, b.action === 'dismiss' ? 'dismissed' : 'acknowledged', c.get('user').name,
   ]);
   await audit(org.id, c.get('user').id, `finding.${b.action}`, c.req.param('id'), {});
+  return c.json({ ok: true });
+});
+
+// ── report review queue ──────────────────────────────────────────────────────
+visits.get('/reviews', async (c) => {
+  const org = c.get('org');
+  const mine = c.req.query('mine') === '1';
+  return c.json(await awaitingReview(org.id, mine ? { userId: c.get('user').id } : {}));
+});
+
+visits.get('/reviews/count', async (c) => {
+  const org = c.get('org');
+  const [all, mine] = await Promise.all([reviewCount(org.id), reviewCount(org.id, c.get('user').id)]);
+  return c.json({ all, mine });
+});
+
+visits.post('/records/:id/reviewed', async (c) => {
+  const org = c.get('org');
+  const rec = await ctx.db.one<{ client_id: string }>('select client_id from records where id = $1 and org_id = $2', [c.req.param('id'), org.id]);
+  if (!rec) fail(404, 'Not found');
+  await requireSignOff(c, rec.client_id);
+  if (!(await markReviewed(org.id, c.req.param('id'), c.get('user').id))) fail(409, 'Already reviewed');
   return c.json({ ok: true });
 });
 

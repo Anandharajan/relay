@@ -8,7 +8,7 @@ import type { Org } from '../services/orgs.ts';
 import { dayBounds, formatWhen, freeSlots, listStaff, queueFor } from '../services/visits.ts';
 import { extractDate, extractMedicines, extractObservations, flagFor, TESTS } from '../services/records.ts';
 import { answer } from './answer.ts';
-import { bookingIntent, matchStaff } from './booking.ts';
+import { bookingIntent, changeIntent, matchStaff } from './booking.ts';
 import { asksMedicalAdvice, isEmergency, maskHealth } from './safety.ts';
 import { t } from './i18n.ts';
 import { executeAction, extractParams, loadActions, matchActionByKeywords, renderTemplate } from './actions.ts';
@@ -222,9 +222,10 @@ async function runMessage(org: Org, r: PipelineRun, text: string) {
       const actions = await loadActions(org.id);
       const action = matchActionByKeywords(text, actions);
       const actionReady = action && Object.keys(extractParams(text, action).params).length > 0 ? action : null;
-      const booking = staff.length > 0 && bookingIntent(text);
-      const label = booking ? 'Book an appointment' : actionReady ? `Look up: ${actionReady.name}` : 'Question for the help desk';
-      return { result: label, value: { booking, action: actionReady, staff } };
+      const change = changeIntent(text);
+      const booking = !change && staff.length > 0 && bookingIntent(text);
+      const label = change ? 'Change or cancel a booking' : booking ? 'Book an appointment' : actionReady ? `Look up: ${actionReady.name}` : 'Question for the help desk';
+      return { result: label, value: { booking, change, action: actionReady && !change ? actionReady : null, staff } };
     }),
   ]);
   const L = lang ?? 'en';
@@ -252,13 +253,15 @@ async function runMessage(org: Org, r: PipelineRun, text: string) {
   // Stage 2: three agents at once.
   const [kb, slots, lookup] = await Promise.all([
     agent(r, 'knowledge', async () => {
+      if (intent?.change) return { result: 'Not needed: staff handle changes', value: null };
       const out = await answer({ org, question: text, dryRun: true, skipActions: true });
-      return { result: out.kind === 'answer' ? `Answered (confidence ${Math.round(out.confidence * 100)}%, ${out.citations.length} source${out.citations.length === 1 ? '' : 's'})` : 'No confident answer in the help desk', value: out };
+      return { result: out.kind === 'answer' ? `Answered (confidence ${Math.round(out.confidence * 100)}%, ${out.citations.length} source${out.citations.length === 1 ? '' : 's'})` : out.kind === 'smalltalk' ? 'Greeting, no lookup needed' : 'No confident answer in the help desk', value: out };
     }),
     agent(r, 'booking', async () => {
       if (!intent?.booking) return null;
       const matched = matchStaff(text, intent.staff);
-      const who = (matched.length ? matched : intent.staff).slice(0, 2);
+      const general = intent.staff.filter((s) => /general|family|physician/i.test(s.specialty ?? ''));
+      const who = (matched.length ? matched : general.length ? general : intent.staff).slice(0, 2);
       const lists = await Promise.all(who.map(async (s) => ({ s, slots: await freeSlots(org, s, 3) })));
       const total = lists.reduce((n, x) => n + x.slots.length, 0);
       return { result: `${total} free slot${total === 1 ? '' : 's'} with ${who.map((w) => w.name).join(', ')}`, value: lists };
@@ -287,7 +290,11 @@ async function runMessage(org: Org, r: PipelineRun, text: string) {
       reply = lookup;
       return { result: 'Used the lookup result' };
     }
-    if (kb?.kind === 'answer' && kb.text) {
+    if (intent?.change) {
+      reply = t('handoff', L);
+      return { result: 'Passed to the front desk to change or cancel' };
+    }
+    if ((kb?.kind === 'answer' || kb?.kind === 'smalltalk') && kb.text) {
       reply = kb.text;
       return { result: 'Used the help-desk answer' };
     }

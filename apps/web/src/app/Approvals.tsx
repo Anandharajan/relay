@@ -4,6 +4,7 @@ import { api, timeAgo, useApi, useEvents } from '../lib/api';
 import { useSession } from '../lib/session';
 import { terms } from '../lib/terms';
 import { Empty, Loading, useToast } from '../components/ui';
+import { ReviewQueue } from '../components/ReviewQueue';
 
 /** Doctor-in-the-loop: AI-drafted messages and AI findings wait here until a clinician decides. */
 export function Approvals() {
@@ -45,6 +46,7 @@ export function Approvals() {
           ))}
         </div>
       )}
+      <ReviewQueue readOnly={readOnly} />
       <div className="grid2">
         <div className="card pad stack">
           <h3>Messages waiting for approval ({messages.length})</h3>

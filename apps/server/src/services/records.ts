@@ -1,3 +1,4 @@
+import { routeRecord } from './review.ts';
 import { ctx } from '../ctx.ts';
 import { uuid } from '../lib/crypto.ts';
 import { publish } from '../lib/events.ts';
@@ -32,20 +33,20 @@ interface TestDef {
 
 export const TESTS: TestDef[] = [
   { key: 'hba1c', label: 'HbA1c', re: /\b(hba1c|hb\s?a1c|glycated h(a)?emoglobin|glycosylated h(a)?emoglobin|a1c)\b/i, unit: '%', low: 4, high: 5.7, critHigh: 14, repeatMonths: 3 },
-  { key: 'fbs', label: 'Fasting blood sugar', re: /\b(fasting (blood|plasma)? ?(sugar|glucose)|glucose,? fasting|fbs|fpg)\b/i, unit: 'mg/dL', low: 70, high: 100, critLow: 54, critHigh: 400, repeatMonths: 3 },
+  { key: 'fbs', label: 'Fasting blood sugar', re: /\b(fasting (blood|plasma)? ?(sugar|glucose)|glucose,? fasting|fbs|fpg)\b|வெறும் வயிற்று சர்க்கரை|फास्टिंग शुगर/i, unit: 'mg/dL', low: 70, high: 100, critLow: 54, critHigh: 400, repeatMonths: 3 },
   { key: 'ppbs', label: 'Post-meal blood sugar', re: /\b(post ?prandial|pp ?bs|ppbs|ppg|2 ?hr? (blood )?(sugar|glucose))\b/i, unit: 'mg/dL', low: 70, high: 140, critHigh: 400 },
-  { key: 'rbs', label: 'Random blood sugar', re: /\b(random (blood )?(sugar|glucose)|rbs)\b/i, unit: 'mg/dL', low: 70, high: 140, critLow: 54, critHigh: 400 },
-  { key: 'hb', label: 'Haemoglobin', re: /\b(h(a)?emoglobin|hgb|hb)\b(?!\s?a1c)/i, unit: 'g/dL', low: 12, high: 17, critLow: 7, critHigh: 20, repeatMonths: 3 },
+  { key: 'rbs', label: 'Random blood sugar', re: /\b(random (blood )?(sugar|glucose)|rbs)\b|சர்க்கரை|शुगर/i, unit: 'mg/dL', low: 70, high: 140, critLow: 54, critHigh: 400 },
+  { key: 'hb', label: 'Haemoglobin', re: /\b(h(a)?emoglobin|hgb|hb)\b(?!\s?a1c)|ஹீமோகுளோபின்|हीमोग्लोबिन/i, unit: 'g/dL', low: 12, high: 17, critLow: 7, critHigh: 20, repeatMonths: 3 },
   { key: 'wbc', label: 'White cell count', re: /\b(total (leu[ck]ocyte|wbc|white (blood )?cell) count|wbc|tlc)\b/i, unit: '/µL', low: 4000, high: 11000, critLow: 1000, critHigh: 30000, scale: (v) => (v < 200 ? v * 1000 : v) },
   { key: 'plt', label: 'Platelets', re: /\b(platelets?( count)?|plt)\b/i, unit: '/µL', low: 150000, high: 450000, critLow: 20000, critHigh: 1000000, scale: (v) => (v < 10 ? v * 100000 : v < 2000 ? v * 1000 : v) },
-  { key: 'creat', label: 'Creatinine', re: /\b(serum )?creatinine\b/i, unit: 'mg/dL', low: 0.6, high: 1.3, critHigh: 4, repeatMonths: 6 },
+  { key: 'creat', label: 'Creatinine', re: /\b(serum )?creatinine\b|கிரியேட்டினின்|क्रिएटिनिन/i, unit: 'mg/dL', low: 0.6, high: 1.3, critHigh: 4, repeatMonths: 6 },
   { key: 'urea', label: 'Blood urea', re: /\b(blood urea|urea|bun)\b/i, unit: 'mg/dL', low: 15, high: 45, critHigh: 150 },
   { key: 'uric', label: 'Uric acid', re: /\buric acid\b/i, unit: 'mg/dL', low: 3.5, high: 7.2 },
   { key: 'na', label: 'Sodium', re: /\b(sodium|na\+?)\b/i, unit: 'mmol/L', low: 135, high: 145, critLow: 120, critHigh: 160 },
-  { key: 'k', label: 'Potassium', re: /\b(potassium|k\+)\b/i, unit: 'mmol/L', low: 3.5, high: 5.1, critLow: 2.5, critHigh: 6.5 },
+  { key: 'k', label: 'Potassium', re: /\b(potassium|k\+)\b|பொட்டாசியம்|पोटैशियम/i, unit: 'mmol/L', low: 3.5, high: 5.1, critLow: 2.5, critHigh: 6.5 },
   { key: 'ldl', label: 'LDL cholesterol', re: /\b(ldl( cholesterol)?|ldl-c)\b/i, unit: 'mg/dL', high: 100, critHigh: 300, repeatMonths: 12 },
   { key: 'hdl', label: 'HDL cholesterol', re: /\b(hdl( cholesterol)?|hdl-c)\b/i, unit: 'mg/dL', low: 40 },
-  { key: 'tc', label: 'Total cholesterol', re: /^(?!.*\b(ldl|hdl|vldl)\b).*?\b(total cholesterol|cholesterol,? total|s\.? cholesterol|cholesterol)\b/i, unit: 'mg/dL', high: 200, repeatMonths: 12 },
+  { key: 'tc', label: 'Total cholesterol', re: /^(?!.*\b(ldl|hdl|vldl)\b).*?\b(total cholesterol|cholesterol,? total|s\.? cholesterol|cholesterol)\b|கொலஸ்ட்ரால்|कोलेस्ट्रॉल/i, unit: 'mg/dL', high: 200, repeatMonths: 12 },
   { key: 'tg', label: 'Triglycerides', re: /\b(triglycerides?|tgl?)\b/i, unit: 'mg/dL', high: 150, critHigh: 1000 },
   { key: 'tsh', label: 'TSH', re: /\b(tsh|thyroid stimulating hormone)\b/i, unit: 'µIU/mL', low: 0.4, high: 4.5, critHigh: 50, repeatMonths: 3 },
   { key: 'alt', label: 'ALT (SGPT)', re: /\b(alt|sgpt|alanine (amino)?transaminase)\b/i, unit: 'U/L', high: 56, critHigh: 1000 },
@@ -226,6 +227,7 @@ export async function processRecord(payload: { recordId: string }) {
     await recordRun({ orgId: rec.org_id, agent: 'intake', trigger: `upload:${rec.uploaded_by}`, clientId: rec.client_id, status: 'handoff', outcome: 'needs manual review', tags: ['intake.unreadable_file'], steps: [{ name: 'extract_text', detail: 'no text layer (image/scan)' }], latencyMs: Date.now() - t0 });
     await ctx.db.query(`update records set status = 'needs_review', summary = $2::jsonb where id = $1`, [rec.id, { note: 'Image or scanned file: enter key values manually, or enable model-assisted extraction.' }]);
     await syncReportContext(rec, 'needs_review');
+    await routeRecord(rec.org_id, rec);
     publish(`org:${rec.org_id}`, 'records.updated', { clientId: rec.client_id });
     return;
   }
@@ -265,6 +267,7 @@ export async function processRecord(payload: { recordId: string }) {
         : `We received your report "${rec.title}". Your doctor will review it before your visit.`;
     await queueMessage(o, rec.client_id, 'record_ack', ack);
   }
+  await routeRecord(rec.org_id, rec);
   publish(`org:${rec.org_id}`, 'records.updated', { clientId: rec.client_id, findings: created });
   await syncReportContext(rec, 'processed');
 }

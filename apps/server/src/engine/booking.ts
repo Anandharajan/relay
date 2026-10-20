@@ -28,7 +28,7 @@ interface BookingState {
 }
 
 const bookRe =
-  /\b(book|booking|appointment|appoinment|apointment|schedule (a |an )?(visit|consult\w*|session)|see (a |the )?(doctor|dr)|slot|token)\b|அப்பாயின்ட்மென்ட்|அப்பாய்ண்ட்மெண்ட்|முன்பதிவு|டாக்டரை (பார்க்க|சந்திக்க)|அபாயின்ட்மென்ட்|अपॉइंटमेंट|अपॉइंटमेंट|बुक कर|डॉक्टर से मिल|ಅಪಾಯಿಂಟ್ಮೆಂಟ್|ಬುಕ್ ಮಾಡ|అపాయింట్‌మెంట్|బుక్ చేయ/i;
+  /\b(book|booking|appointment|appoinment|apointment|appt|schedule (a |an )?(visit|consult\w*|session)|see (a |the )?(doctor|dr)|meet (a |the )?(doctor|dr)|slot|token|check-?up|consultation with|visit (dr|doctor))\b|\bwith dr\.? [a-z]|அப்பாயின்ட்மென்ட்|அப்பாய்ண்ட்மெண்ட்|அப்பாயிண்ட்மென்ட்|முன்பதிவு|டாக்டர[ைை]? ?(பார்க்க|பாக்க|சந்திக்க)|டாக்டர் பார்|டாக்டரைப் பார்|மருத்துவரை (பார்க்க|சந்திக்க)|அபாயின்ட்மென்ட்|अपॉइंटमेंट|अपॉइंटमेंट|बुक कर|डॉक्टर से मिल|ಅಪಾಯಿಂಟ್ಮೆಂಟ್|ಬುಕ್ ಮಾಡ|అపాయింట్‌మెంట్|బుక్ చేయ/i;
 const changeRe = /\b(cancel|reschedul\w*|postpone|change (my )?(appointment|time|slot))\b|ரத்து|மாற்ற|रद्द|बदल|ರದ್ದು|రద్దు/i;
 const arrivedRe =
   /\b(i('?m| am) (here|at the (clinic|hospital|reception|centre|center))|i (have )?(arrived|reached)|i('?ve)? reached|just (arrived|reached)|reached (the )?(clinic|hospital))\b|வந்துவிட்டேன்|வந்து விட்டேன்|வந்துட்டேன்|பहुँच गया|पहुँच गया|पहुंच गया|पहुँच गई|पहुंच गई|ತಲುಪಿದ್ದೇನೆ|ಬಂದಿದ್ದೇನೆ|చేరుకున్నాను|వచ్చాను/i;
@@ -39,15 +39,16 @@ const stopRe = /^\s*(stop|cancel|no|exit|quit|nevermind|never mind|வேண்�
 /** Specialty synonyms in English, Tamil and Hindi. */
 const synonyms: [RegExp, string][] = [
   [/heart|cardi|bp|chest|இதய|இருதய|हृदय|दिल/i, 'cardio'],
-  [/child|kid|baby|infant|paed|ped|குழந்தை|बच्च|ಮಕ್ಕಳ/i, 'paedi'],
+  [/child|\bkids?\b|baby|infant|paediatric|pediatric|my (son|daughter)|குழந்தை|बच्च|ಮಕ್ಕಳ/i, 'paediatr'],
   [/skin|derma|hair|rash|acne|தோல்|त्वचा/i, 'derma'],
-  [/sugar|diabet|thyroid|hormone|சர்க்கரை|நீரிழிவு|शुगर|मधुमेह/i, 'diabet'],
+  [/sugar|diabet|thyroid|hormone|endocrin|சர்க்கரை|நீரிழிவு|शुगर|मधुमेह/i, 'diabet'],
   [/bone|joint|knee|back pain|fracture|ortho|எலும்பு|மூட்டு|हड्डी|जोड़/i, 'ortho'],
-  [/women|pregnan|period|gyn|obst|மகப்பேறு|கர்ப்ப|பெண்கள்|गर्भ|स्त्री/i, 'gyn'],
+  [/women|pregnan|\bperiods?\b|gyn|obst|antenatal|மகப்பேறு|கர்ப்ப|பெண்கள்|गर्भ|स्त्री/i, 'gyn'],
+  [/anaesth|anesth|pre-?op|surgery|operation|மயக்க/i, 'anaesth'],
   [/eye|vision|ophth|கண்|आँख/i, 'ophth'],
-  [/ear|nose|throat|\bent\b|காது|மூக்கு|தொண்டை|कान|गला/i, 'ent'],
+  [/\bears?\b|\bnose\b|throat|\bent\b|காது|மூக்கு|தொண்டை|कान|गला/i, 'ent'],
   [/fever|cold|cough|general|physician|காய்ச்சல்|சளி|बुखार|सामान्य/i, 'general'],
-  [/teeth|tooth|dental|dent|பல்|दांत/i, 'dent'],
+  [/teeth|tooth|dental|\bdentist|பல் வலி|दांत/i, 'dent'],
 ];
 
 function pickByNumber(text: string, n: number): number | null {
@@ -189,4 +190,8 @@ export async function followupReply(text: string, meta: Record<string, any> | un
 /** Used by the agent pipeline to route a message to the booking agent. */
 export function bookingIntent(text: string): boolean {
   return bookRe.test(text) && !changeRe.test(text);
+}
+
+export function changeIntent(text: string): boolean {
+  return changeRe.test(text) && /appoint|appt|slot|token|visit|booking|சந்திப்பு|அப்பாய|முன்பதிவு|अपॉइंट|ಅಪಾಯಿ|అపాయి/i.test(text);
 }

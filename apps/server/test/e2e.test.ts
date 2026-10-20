@@ -254,6 +254,32 @@ test('records: intake and findings agents, doctor approval before the patient is
   assert.ok(after.findings.filter((f: any) => f.severity !== 'info').every((f: any) => f.status === 'shared'));
 });
 
+test('review routing: reports reach the booked doctor\'s queue until signed off', async () => {
+  const me = (await api('GET', '/api/me')).data;
+  const staff = (await api('GET', '/api/visits/staff')).data.find((s: any) => /Narmadha/.test(s.name)) ?? (await api('GET', '/api/visits/staff')).data[0];
+  // Only workspace members can be linked to a calendar.
+  assert.equal((await api('PATCH', `/api/visits/staff/${staff.id}`, { userId: '00000000-0000-4000-8000-000000000000' })).status, 400);
+  assert.equal((await api('PATCH', `/api/visits/staff/${staff.id}`, { userId: me.user.id })).status, 200);
+  try {
+    const slot = (await api('GET', `/api/visits/slots?staffId=${staff.id}`)).data[0];
+    const appt = await api('POST', '/api/visits/appointments', { client: { name: 'Synthetic Routing Patient', phone: '9000000777', lang: 'en' }, staffId: staff.id, startsAt: slot });
+    assert.equal(appt.status, 200, JSON.stringify(appt.data));
+    const clientId = appt.data.client_id ?? appt.data.clientId;
+    const rec = await api('POST', `/api/visits/clients/${clientId}/records`, { title: 'Routine lab', text: 'Haemoglobin 13.1 g/dL 12.0 - 15.5\nTSH 2.0 µIU/mL 0.4 - 4.5' });
+    assert.equal(rec.status, 200);
+    const item = await waitFor(async () => (await api('GET', '/api/visits/reviews?mine=1')).data.find((r: any) => r.client_id === clientId), 'routed review');
+    assert.equal(item.staff_name, staff.name);
+    assert.equal(item.urgent_findings, 0); // a routine report still waits for review
+    const counts = (await api('GET', '/api/visits/reviews/count')).data;
+    assert.ok(counts.mine >= 1 && counts.all >= counts.mine);
+    assert.equal((await api('POST', `/api/visits/records/${item.id}/reviewed`, {})).status, 200);
+    assert.equal((await api('POST', `/api/visits/records/${item.id}/reviewed`, {})).status, 409);
+    assert.ok(!(await api('GET', '/api/visits/reviews')).data.some((r: any) => r.id === item.id));
+  } finally {
+    await api('PATCH', `/api/visits/staff/${staff.id}`, { userId: null });
+  }
+});
+
 test('telecalling add-on: simulated reminder call and keypad answer', async () => {
   const appts = (await api('GET', '/api/visits/appointments')).data.filter((a: any) => a.status === 'booked');
   if (!appts.length) return;

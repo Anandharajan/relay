@@ -182,10 +182,12 @@ inbox.get('/stream', (c) => {
   return streamSSE(c, async (stream) => {
     const queue: RelayEvent[] = [];
     let wake: (() => void) | null = null;
-    const unsubscribe = subscribe(`org:${orgId}`, (e) => {
+    const push = (e: RelayEvent) => {
       queue.push(e);
       wake?.();
-    });
+    };
+    const unsubscribers = [subscribe(`org:${orgId}`, push), subscribe(`user:${c.get('user').id}`, push)];
+    const unsubscribe = () => unsubscribers.forEach((u) => u());
     let open = true;
     stream.onAbort(() => {
       open = false;

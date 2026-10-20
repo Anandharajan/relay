@@ -6,11 +6,11 @@
 
 const emergencyPatterns: RegExp[] = [
   // English
-  /\b(chest pain|heart attack|can'?t breathe|cannot breathe|not breathing|stopped breathing|difficulty breathing|choking|unconscious|fainted|collapsed|not responding|seizure|fits|stroke|paraly[sz]ed|face drooping|heavy bleeding|bleeding (a lot|heavily|won'?t stop)|vomiting blood|blood in vomit|severe burn|poison(ed|ing)?|overdose|swallowed (pills|poison|acid)|snake ?bite|suicid\w*|kill (myself|himself|herself)|self[- ]harm|accident|head injury|severe pain|baby (not moving|isn'?t moving)|water broke|labou?r pain|high fever (and|with) (stiff neck|fits|confusion))\b/i,
+  /\b(chest pain|heart attack|can'?t breathe|cannot breathe|not breathing|stopped breathing|difficulty breathing|choking|unconscious|fainted|collapsed|not responding|seizure|fits|stroke|paraly[sz]ed|face drooping|heavy bleeding|bleeding (a lot|heavily|won'?t stop)|pregnan\w*.{0,40}bleed\w*|bleed\w*.{0,40}pregnan\w*|vomiting blood|blood in vomit|severe burn|poison(ed|ing)?|overdose|swallowed (pills|poison|acid)|snake ?bite|suicid\w*|kill (myself|himself|herself)|self[- ]harm|accident|head injury|severe pain|baby (not moving|isn'?t moving)|(water|waters) (broke|broken)|no fetal movement|labou?r pain|high fever (and|with) (stiff neck|fits|confusion))\b/i,
   // Tamil
-  /நெஞ்சு வலி|மார்பு வலி|மூச்சு (விட முடியவில்லை|திணறல்)|மயக்க(ம்|மாக)|மயங்கி|வலிப்பு|பக்கவாதம்|அதிக ரத்த(ப்)?போக்கு|ரத்த வாந்தி|விஷம்|பாம்பு கடி|விபத்து|தற்கொலை|பிரசவ வலி|குழந்தை அசையவில்லை/,
+  /நெஞ்சு வலி|மார்பு வலி|மூச்சு (விட முடியவில்லை|திணறல்)|மயக்க(ம்|மாக)|மயங்கி|வலிப்பு|பக்கவாதம்|அதிக ரத்த(ப்)?போக்கு|ரத்த வாந்தி|விஷம்|பாம்பு கடி|விபத்து|தற்கொலை|பிரசவ வலி|குழந்தை அசையவில்லை|நெஞ்சு வலிக்க|கர்ப்ப.{0,20}ரத்த|ரத்தப்போக்கு/,
   // Hindi
-  /सीने में दर्द|छाती में दर्द|सांस (नहीं|लेने में तकलीफ)|बेहोश|दौरा|लकवा|बहुत खून|खून की उल्टी|ज़हर|जहर|सांप ने काट|दुर्घटना|आत्महत्या|प्रसव पीड़ा/,
+  /सीने में दर्द|छाती में दर्द|सांस (नहीं|लेने में तकलीफ)|बेहोश|दौरा|लकवा|बहुत खून|खून की उल्टी|ज़हर|जहर|सांप ने काट|दुर्घटना|आत्महत्या|प्रसव पीड़ा|गर्भ.{0,20}खून/,
   // Kannada
   /ಎದೆ ನೋವು|ಉಸಿರಾಡಲು ಆಗುತ್ತಿಲ್ಲ|ಪ್ರಜ್ಞೆ ತಪ್ಪಿ|ಮೂರ್ಛೆ|ಪಾರ್ಶ್ವವಾಯು|ತುಂಬಾ ರಕ್ತ|ವಿಷ|ಹಾವು ಕಚ್ಚಿ|ಅಪಘಾತ|ಆತ್ಮಹತ್ಯೆ/,
   // Telugu
@@ -19,9 +19,9 @@ const emergencyPatterns: RegExp[] = [
 
 /** Questions that ask for diagnosis, dosing, interpretation or treatment decisions. */
 const medicalAdvicePatterns: RegExp[] = [
-  /\b(can i (take|eat|drink|stop|skip|continue|double)|should i (take|stop|start|continue|worry)|is it (safe|normal|serious|dangerous)|what (medicine|tablet|drug|dose|dosage)|how (much|many) (mg|tablets?|pills?|doses?)|which (medicine|tablet|antibiotic)|dosage|dose of|side effects? of|interact(ion)? with|is my (report|result|sugar|bp|pressure|level|value|scan|x-?ray|ecg|test|hba1c|cholesterol|thyroid)( (result|level|value|reading))? (normal|ok(ay)?|fine|good|bad|high|low|serious|dangerous|worrying)|what does my (report|result|scan|test) (mean|say|show|indicate)|do i have|am i (sick|diabetic|pregnant)|diagnos\w*|prescribe|treatment for|cure for|home remedy|is (this|it) cancer)\b/i,
-  /மருந்து (எடுக்கலாமா|சாப்பிடலாமா|நிறுத்தலாமா)|எத்தனை மாத்திரை|என் (ரிப்போர்ட்|அறிக்கை|சுகர்|பிபி) (சரியா|நார்மலா)|என்ன நோய்|பக்க விளைவு/,
-  /दवा (ले सकता|ले सकती|बंद कर)|कितनी गोली|मेरी रिपोर्ट (ठीक|नॉर्मल)|क्या मुझे .*(बीमारी|डायबिटीज़)|साइड इफेक्ट/,
+  /\b(can i (take|eat|drink|stop|skip|continue|double)|should i (take|stop|start|continue|worry)|is it (safe|normal|serious|dangerous)|what (medicine|tablet|drug|dose|dosage)|how (much|many) (mg|tablets?|pills?|doses?)|which (medicine|tablet|antibiotic)|dosage|dose of|side effects? of|interact(ion)? with|is my (report|result|sugar|bp|pressure|level|value|scan|x-?ray|ecg|test|hba1c|cholesterol|thyroid)( (result|level|value|reading))? (normal|ok(ay)?|fine|good|bad|high|low|serious|dangerous|worrying)|what does my (report|result|scan|test) (mean|say|show|indicate)|do i have|am i (sick|diabetic|pregnant)|diagnos\w*|prescribe|treatment for|cure for|home remedy|is (this|it) cancer|is (it|this|that) (bad|serious|dangerous|normal|worrying|ok(ay)?)|(what (should|can) i (do|give)|what to do)\b.{0,60}\b(fever|pain|cough|vomit\w*|rash|loose motion|diarrh\w*|swelling|bleed\w*|sugar|bp)|\b(fever|pain|cough|vomit\w*|rash|loose motion|diarrh\w*|swelling)\b.{0,60}\b(what (should|can) i (do|give)|what to do|which medicine))\b/i,
+  /(மருந்து|மாத்திரை|டேப்லெட்|tablet).{0,20}(எடுக்கலாமா|சாப்பிடலாமா|நிறுத்தலாமா|போடலாமா|குடிக்கலாமா)|நிறுத்தலாமா|எத்தனை மாத்திரை|என் (ரிப்போர்ட்|அறிக்கை|சுகர்|பிபி) (சரியா|நார்மலா)|என்ன நோய்|பக்க விளைவு/,
+  /(दवा|गोली|टैबलेट).{0,20}(ले सकता|ले सकती|बंद कर|खा सकता|खा सकती)|कितनी गोली|मेरी रिपोर्ट (ठीक|नॉर्मल)|क्या मुझे .*(बीमारी|डायबिटीज़)|साइड इफेक्ट/,
   /ಔಷಧಿ (ತೆಗೆದುಕೊಳ್ಳಬಹುದೇ|ನಿಲ್ಲಿಸಬಹುದೇ)|ನನ್ನ ವರದಿ (ಸರಿಯೇ|ನಾರ್ಮಲ್)/,
   /మందు (వేసుకోవచ్చా|ఆపవచ్చా)|నా రిపోర్ట్ (సరిగా|నార్మల్)/,
 ];

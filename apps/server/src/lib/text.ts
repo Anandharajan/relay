@@ -125,3 +125,38 @@ export function chunkDocument(doc: string, opts: { title?: string; url?: string;
 export function truncate(s: string, n: number): string {
   return s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '…';
 }
+
+/**
+ * Romanised Tamil/Hindi ("Tanglish", "Hinglish") and everyday synonyms → English search terms.
+ * Only used to find knowledge; the reply still follows the customer's own language.
+ */
+const romanised: [RegExp, string][] = [
+  [/\b(enna|yenna|ennatha|kya|kyaa)\b/gi, 'what'],
+  [/\b(evvalavu|evlo|evlavu|yevlo|ewlo|kitna|kitne|kitni)\b/gi, 'how much'],
+  [/\b(eppo|eppodhu|eppothu|kab)\b/gi, 'when'],
+  [/\b(enga|engey|engay|kahan|kaha)\b/gi, 'where'],
+  [/\b(irukka|iruka|irukkuma|hai kya|milega)\b/gi, 'available'],
+  [/\b(naalaiku|nalaiku|naalaikku|naalai|kal)\b/gi, 'tomorrow'],
+  [/\b(inniku|innaiku|indru|aaj)\b/gi, 'today'],
+  [/\b(kattanam|katanam|charges?|cost|price|rate|fees?)\b/gi, 'consultation fee'],
+  [/\b(timings?|time table|open(ing)?|close|closing|hours)\b/gi, 'timings hours'],
+  [/\b(insurance|insurence|cashless|mediclaim|tpa|bima|beema)\b/gi, 'insurance cashless'],
+  [/\b(car park|bike park|vehicle)\b/gi, 'parking'],
+  [/\b(lab test|blood test|test results?)\b/gi, 'lab report'],
+];
+const nativeSynonyms: [RegExp, string][] = [
+  [/இன்சூரன்ஸ்|காப்பீடு/g, ' காப்பீடு பணமில்லா '],
+  [/இंश्योरेंस|इंश्योरेंस|बीमा/g, ' बीमा कैशलेस '],
+  [/கட்டணம்|ஃபீஸ்|பீஸ்/g, ' ஆலோசனைக் கட்டணம் '],
+  [/फीस|शुल्क/g, ' परामर्श शुल्क '],
+  [/நேரம்|டைமிங்/g, ' நேரம் '],
+];
+
+export function normalizeQuery(text: string): string {
+  let extra = '';
+  for (const [re, en] of romanised) if (re.test(text)) extra += ` ${en}`;
+  for (const [re, add] of nativeSynonyms) if (re.test(text)) extra += add;
+  for (const [re] of romanised) re.lastIndex = 0;
+  for (const [re] of nativeSynonyms) re.lastIndex = 0;
+  return extra ? `${text} ${extra}`.replace(/\s+/g, ' ').trim() : text;
+}

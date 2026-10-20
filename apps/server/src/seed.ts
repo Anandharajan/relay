@@ -64,6 +64,10 @@ A: Request it at the Medical Records desk with a photo ID. Copies are ready in 2
 ## Emergency
 Q: What should I do in an emergency?
 A: Call 108 for an ambulance or come directly to our 24-hour Emergency department. Our emergency line is 044-4000-1111 (demo number).
+
+## Tests
+Q: Do I need to fast before a blood test?
+A: For fasting blood sugar and lipid (cholesterol) tests, do not eat for 10 to 12 hours before; plain water is fine. Take your usual medicines unless your doctor told you otherwise. The lab opens at 7 am.
 `;
 
 const faqTamil = `# நோயாளி உதவி மையம் (தமிழ்)
@@ -94,6 +98,9 @@ const faqTamil = `# நோயாளி உதவி மையம் (தமி�
 
 கேள்வி: சந்திப்புக்கு என்ன கொண்டு வர வேண்டும்?
 பதில்: அடையாள அட்டை, பழைய மருந்துச் சீட்டுகள், பரிசோதனை அறிக்கைகள், நீங்கள் எடுக்கும் மருந்துகளின் பட்டியல் மற்றும் காப்பீட்டு அட்டையைக் கொண்டு வரவும். 15 நிமிடங்கள் முன்னதாக வந்து செக்-இன் செய்யவும்.
+
+கேள்வி: ரத்த பரிசோதனைக்கு முன் சாப்பிடாமல் வர வேண்டுமா?
+பதில்: வெறும் வயிற்று சர்க்கரை மற்றும் கொலஸ்ட்ரால் பரிசோதனைக்கு 10 முதல் 12 மணி நேரம் சாப்பிட வேண்டாம்; தண்ணீர் குடிக்கலாம். ஆய்வகம் காலை 7 மணிக்கு திறக்கும்.
 `;
 
 const faqHindi = `# सहायता केंद्र (हिंदी)
@@ -104,7 +111,7 @@ const faqHindi = `# सहायता केंद्र (हिंदी)
 प्रश्न: परामर्श शुल्क कितना है?
 उत्तर: जनरल मेडिसिन परामर्श ₹500 और विशेषज्ञ परामर्श ₹700 है। उसी डॉक्टर से 7 दिनों के अंदर दोबारा दिखाना मुफ्त है।
 
-प्रश्न: क्या कैशलेस इलाज होता है?
+प्रश्न: क्या इंश्योरेंस या बीमा चलता है? क्या कैशलेस इलाज होता है?
 उत्तर: हाँ, अधिकांश प्रमुख बीमा कंपनियों और टीपीए के साथ कैशलेस इलाज उपलब्ध है। अपना बीमा कार्ड और फोटो आईडी साथ लाएँ।
 `;
 
@@ -308,10 +315,26 @@ async function demoOrg(): Promise<Org | undefined> {
   return row ? getOrg(row.id) : undefined;
 }
 
+const demoSources = [['Patient Help Desk (English)', faqEnglish], ['நோயாளி உதவி மையம் (தமிழ்)', faqTamil], ['सहायता केंद्र (हिंदी)', faqHindi]] as const;
+
+/** Existing demo deployments return early from seedDemo, so refresh changed help-desk text in place. */
+async function ensureDemoKnowledge(orgId: string): Promise<void> {
+  for (const [title, content] of demoSources) {
+    const row = await ctx.db.one<{ id: string; content: string }>('select id, content from knowledge_sources where org_id = $1 and title = $2 limit 1', [orgId, title]);
+    if (!row || row.content === content) continue;
+    await ctx.db.query('update knowledge_sources set content = $2 where id = $1', [row.id, content]);
+    await ingestSource({ sourceId: row.id }).catch((e) => console.warn('[seed] re-ingest failed', e));
+  }
+}
+
 export async function seedDemo(): Promise<void> {
   if (!config.demo.seed) return;
   let user = await ctx.db.one<{ id: string }>('select id from users where email = $1', [config.demo.email]);
-  if (user && (await demoOrg())) return refreshDemoDay();
+  const existing = user ? await demoOrg() : undefined;
+  if (existing) {
+    await ensureDemoKnowledge(existing.id);
+    return refreshDemoDay();
+  }
   console.log('[seed] creating demo workspace…');
 
   if (user) {
@@ -338,7 +361,7 @@ export async function seedDemo(): Promise<void> {
   await ctx.db.query(`insert into addons (org_id, addon, status) values ($1, 'telecalling', 'active'), ($1, 'camera_checkin', 'active') on conflict do nothing`, [created.id]);
   const org = (await getOrg(created.id))!;
 
-  for (const [title, content] of [['Patient Help Desk (English)', faqEnglish], ['நோயாளி உதவி மையம் (தமிழ்)', faqTamil], ['सहायता केंद्र (हिंदी)', faqHindi]] as const) {
+  for (const [title, content] of demoSources) {
     const id = uuid();
     await ctx.db.query(`insert into knowledge_sources (id, org_id, type, title, content) values ($1, $2, 'faq', $3, $4)`, [id, org.id, title, content]);
     await ingestSource({ sourceId: id });

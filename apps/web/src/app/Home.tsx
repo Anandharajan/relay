@@ -3,6 +3,7 @@ import { useApi } from '../lib/api';
 import { useSession } from '../lib/session';
 import { terms } from '../lib/terms';
 import { AgentConsole } from '../components/AgentConsole';
+import { useReviewCount } from '../components/ReviewQueue';
 
 /** Home = the agent console, plus four numbers and what is left to set up. */
 export function Home() {
@@ -12,6 +13,7 @@ export function Home() {
   const approvals = useApi<any>(T.healthcare ? '/api/visits/approvals' : null);
   const sources = useApi<any[]>('/api/knowledge');
   const staff = useApi<any[]>('/api/visits/staff');
+  const reviews = useReviewCount();
   if (!me) return null;
   const s = stats.data?.totals;
   const viewer = me.role === 'viewer';
@@ -41,6 +43,7 @@ export function Home() {
       <div className="grid4 mini-stats">
         <Link to="/app/inbox" className="card stat"><div className="label">Waiting for you</div><div className="value">{s?.escalated_open ?? '—'}</div></Link>
         {T.healthcare && <Link to="/app/approvals" className="card stat"><div className="label">To approve</div><div className="value">{approvals.data?.messages?.length ?? '—'}</div></Link>}
+        {T.healthcare && <Link to="/app/approvals" className="card stat"><div className="label">Reports to review</div><div className="value">{reviews ? (reviews.mine ? `${reviews.mine} yours` : reviews.all) : '—'}</div></Link>}
         <Link to="/app/visits" className="card stat"><div className="label">{T.visits}</div><div className="value">→</div></Link>
         <Link to="/app/analytics" className="card stat"><div className="label">Solved by AI (30 d)</div><div className="value">{s ? `${Math.round((stats.data.resolutionRate ?? 0) * 100)}%` : '—'}</div></Link>
       </div>

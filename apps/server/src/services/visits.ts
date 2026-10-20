@@ -1,3 +1,4 @@
+import { assignConversationToStaff } from './review.ts';
 import { config } from '../config.ts';
 import { ctx } from '../ctx.ts';
 import { token, uuid } from '../lib/crypto.ts';
@@ -21,6 +22,7 @@ export interface Staff {
   avg_minutes: number;
   schedule: { days: number[]; start: string; end: string };
   active: boolean;
+  user_id: string | null;
 }
 
 export interface Client {
@@ -156,6 +158,8 @@ export async function bookAppointment(org: Org, input: { clientId: string; staff
   const appt = (await getAppointment(org.id, id))!;
   await audit(org.id, input.by ?? 'ai', 'appointment.booked', id, { staff: staff.name, startsAt: input.startsAt });
   await scheduleForAppointment(org, appt, staff);
+  const client = await ctx.db.one<{ conversation_id: string | null }>('select conversation_id from clients where id = $1', [input.clientId]);
+  if (client?.conversation_id) await assignConversationToStaff(org.id, client.conversation_id, staff.id);
   publish(`org:${org.id}`, 'visits.updated', { appointmentId: id });
   return appt;
 }

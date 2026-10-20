@@ -492,10 +492,12 @@ function StaffSettings() {
   const list = useApi<any[]>('/api/visits/staff');
   const [edit, setEdit] = useState<any | null>(null);
   const admin = canAdmin(me);
+  const team = useApi<{ members: { id: string; name: string; email: string }[] }>(admin ? '/api/workspace/team' : null);
+  const members = team.data?.members ?? [];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const save = async () => {
     try {
-      const body = { name: edit.name, specialty: edit.specialty, avgMinutes: Number(edit.avg_minutes), schedule: edit.schedule, languages: edit.languages ?? [], active: edit.active ?? true };
+      const body = { name: edit.name, specialty: edit.specialty, avgMinutes: Number(edit.avg_minutes), schedule: edit.schedule, languages: edit.languages ?? [], active: edit.active ?? true, userId: edit.user_id || null };
       if (edit.id) await api(`/api/visits/staff/${edit.id}`, { method: 'PATCH', body });
       else await api('/api/visits/staff', { body });
       setEdit(null);
@@ -514,7 +516,7 @@ function StaffSettings() {
         </div>
         {list.loading ? <Loading /> : (
           <table className="table">
-            <thead><tr><th>Name</th><th>Specialty</th><th>Days</th><th>Hours</th><th>Avg</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Specialty</th><th>Days</th><th>Hours</th><th>Avg</th><th>Login</th><th></th></tr></thead>
             <tbody>
               {(list.data ?? []).map((s) => (
                 <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
@@ -523,6 +525,7 @@ function StaffSettings() {
                   <td className="small">{s.schedule.days.map((d: number) => dayNames[d]).join(' ')}</td>
                   <td className="small">{s.schedule.start}–{s.schedule.end}</td>
                   <td className="small">{s.avg_minutes} min</td>
+                  <td className="small">{members.find((m) => m.id === s.user_id)?.name ?? (s.user_id ? 'Linked' : <span className="muted">Not linked</span>)}</td>
                   <td>{admin && <button className="btn sm" onClick={() => setEdit(s)}>Edit</button>}</td>
                 </tr>
               ))}
@@ -546,6 +549,14 @@ function StaffSettings() {
               ))}
             </div>
           </Field>
+          {admin && (
+            <Field label="Linked login" hint="Bookings and reports for this calendar are routed to this person, who can then approve their own patients’ clinical messages.">
+              <select className="select" value={edit.user_id ?? ''} onChange={(e) => setEdit({ ...edit, user_id: e.target.value || null })}>
+                <option value="">Not linked</option>
+                {members.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}
+              </select>
+            </Field>
+          )}
           {edit.id && <label className="check"><input type="checkbox" checked={edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked })} /> Active (bookable)</label>}
         </Modal>
       )}

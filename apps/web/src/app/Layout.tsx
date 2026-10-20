@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api, closeStream, useEvents } from '../lib/api';
 import { useSession } from '../lib/session';
-import { Loading } from '../components/ui';
+import { Loading, useToast } from '../components/ui';
 
 const navFor = (T: ReturnType<typeof terms>) => [
   { to: '/app', label: 'Agents', icon: '✨', end: true },
@@ -27,6 +27,7 @@ export function Layout() {
   const location = useLocation();
   const [attention, setAttention] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const toast = useToast();
 
   const loadCounts = () =>
     api('/api/inbox/conversations?view=attention')
@@ -49,6 +50,13 @@ export function Layout() {
     'conversation.updated': () => void loadCounts(),
     'draft.created': () => void loadCounts(),
     'draft.updated': () => void loadCounts(),
+    // Personal notifications (a report or booking routed to this login).
+    notify: (d: { title: string; body?: string }) => {
+      toast(d.body ? `${d.title}: ${d.body}` : d.title);
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(`Relay: ${d.title}`, { body: d.body ?? '', icon: '/icon-192.png' });
+      }
+    },
   });
 
   // Presence heartbeat: tell teammates what this agent is looking at.

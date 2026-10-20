@@ -56,7 +56,8 @@ export function extractParams(text: string, action: ActionDef, existing: Record<
     if (params[p.name]) continue;
     if (p.pattern) {
       try {
-        const m = text.match(new RegExp(p.pattern, 'i'));
+        const re = new RegExp(p.pattern, 'i');
+        const m = text.match(re) ?? text.replace(/\b([A-Za-z]{2,5})\s+(\d{3,})\b/g, '$1-$2').match(re);
         if (m) params[p.name] = (m[1] ?? m[0]).trim();
       } catch {
         /* invalid pattern configured; ignore */

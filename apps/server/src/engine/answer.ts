@@ -1,7 +1,7 @@
 import { ctx } from '../ctx.ts';
 import { sha1 } from '../lib/crypto.ts';
 import { redact, restore, type Vault } from '../lib/redact.ts';
-import { detectLanguage, languageNames, truncate } from '../lib/text.ts';
+import { detectLanguage, languageNames, truncate, normalizeQuery } from '../lib/text.ts';
 import { LlmRefusal, type Llm } from '../adapters/llm.ts';
 import { llmForOrg, withinPlan, type Org } from '../services/orgs.ts';
 import { extractiveAnswer } from './extractive.ts';
@@ -287,7 +287,7 @@ export async function answer(input: AnswerInput): Promise<AnswerOutput> {
     // 5. Retrieve. Short follow-ups borrow context from the previous customer turn.
     const prevCustomer = [...(input.history ?? [])].reverse().find((h) => h.role === 'customer');
     const query = question.split(/\s+/).length <= 4 && prevCustomer ? `${redact(prevCustomer.content, vault).text} ${question}` : question;
-    const passages = await retrieve(org.id, query, 5);
+    const passages = await retrieve(org.id, normalizeQuery(query), 5);
 
     // 6. Generate.
     let out: AnswerOutput;
@@ -297,7 +297,7 @@ export async function answer(input: AnswerInput): Promise<AnswerOutput> {
       out = { ...base, kind: 'answer', text: g.answer, citations: toCitations(passages, g.cited), confidence: g.confidence, tokens: base.tokens + g.tokens, costInr: base.costInr + g.costInr, engine: g.engine };
       if (g.handoff) out = { ...out, kind: 'handoff', text: t('handoff', lang), citations: [], reason: 'not_in_knowledge' };
     } else {
-      const x = extractiveAnswer(question, passages);
+      const x = extractiveAnswer(normalizeQuery(question), passages);
       out = { ...base, engine, kind: 'answer', text: restore(x.answer, vault), citations: toCitations(passages, x.cited), confidence: x.confidence };
     }
 

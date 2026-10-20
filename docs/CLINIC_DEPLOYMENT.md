@@ -39,9 +39,10 @@ The clinic owns every account. Relay stores tokens and keys encrypted (AES-256-G
    - Emergency number: `108`, or the clinic's emergency line.
    - **Answer mode: Draft** for the first week (see §6).
 3. **Settings → Staff & hours**: one row per doctor with specialty, days, hours and average minutes per patient. The queue learns each doctor's real pace after a few visits.
-4. **Settings → Prep instructions**: the doctor writes these in their own words, in English and Tamil (fasting for sugar/lipid tests, what to bring for cardiology, vaccination card for children, pre-anaesthetic check-up). Each one is matched by keywords and **approved by the doctor**, and is the only medical-sounding text Relay ever sends without a fresh approval.
-5. **Knowledge**: paste the clinic FAQ (timings, fees, doctors' days, insurance/TPA, lab, parking, documents to bring) in English and Tamil, or crawl the clinic website. Use **Ask your AI** to try questions immediately.
-6. **Team**: invite the receptionist as *agent* and the doctor as *admin*.
+4. **Settings → Staff & hours → Linked login**: link each doctor's calendar to their staff login. Bookings assign the patient's conversation to that doctor, new reports land in their *Reports awaiting review* queue with a personal notification, and they can approve clinical messages for their own patients (owners and admins can approve for everyone).
+5. **Settings → Prep instructions**: the doctor writes these in their own words, in English and Tamil (fasting for sugar/lipid tests, what to bring for cardiology, vaccination card for children, pre-anaesthetic check-up). Each one is matched by keywords and **approved by the doctor**, and is the only medical-sounding text Relay ever sends without a fresh approval.
+6. **Knowledge**: paste the clinic FAQ (timings, fees, doctors' days, insurance/TPA, lab, parking, documents to bring) in English and Tamil, or crawl the clinic website. Use **Ask your AI** to try questions immediately.
+7. **Team**: invite the receptionist and each doctor as *agent* (a doctor linked to a calendar can sign off their own patients; make the medical director an *admin*), then link the doctors as in step 4.
 
 ## 4. Day 0–1: bring your own AI key (BYOK)
 
@@ -82,7 +83,7 @@ This is the doctor-in-the-loop rollout. Nothing goes to patients that the clinic
 |---|---|
 | **Settings → Answer mode = Draft** | Every AI reply becomes a draft in the Inbox. Staff edit and send, or discard. Edits become knowledge automatically. |
 | **Inbox** | See the AI's suggested reply, its sources and confidence before it goes out. |
-| **Approvals** | AI findings from reports, and the patient message drafted for them. Edit → Approve and send, or Discard. |
+| **Approvals** | Reports awaiting review (filter to *Assigned to me*), AI findings, and the patient message drafted for them. Mark reviewed; Edit → Approve and send, or Discard. |
 | **Knowledge → Ask your AI** | Type any patient question and see exactly what would be answered, with sources. |
 | **Simulations** | Paste 30–50 real questions from the clinic's WhatsApp history, each with the expected answer (`question => expected words`). Aim for a 90%+ pass rate before leaving Draft mode. |
 | **Safety drill** | Send emergency and medication questions in Tamil and English ("நெஞ்சு வலி", "can I stop my BP tablet?"). They must always be escalated, never answered. |

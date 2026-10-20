@@ -27,13 +27,13 @@ function report(id: string) {
 }
 
 demoStoreApi.get('/lab/:id', (c) => {
-  const id = c.req.param('id').toUpperCase().replace(/^LAB-?/, 'LAB-');
+  const id = c.req.param('id').toUpperCase().replace(/^LAB[-\s]?/, 'LAB-');
   if (!/^LAB-\d{3,6}$/.test(id)) return c.json({ error: 'Report not found' }, 404);
   return c.json(report(id));
 });
 
 demoStoreApi.post('/lab/:id/cancel', (c) => {
-  const id = c.req.param('id').toUpperCase().replace(/^LAB-?/, 'LAB-');
+  const id = c.req.param('id').toUpperCase().replace(/^LAB[-\s]?/, 'LAB-');
   if (!/^LAB-\d{3,6}$/.test(id)) return c.json({ error: 'Report not found' }, 404);
   cancelled.add(id);
   return c.json(report(id));

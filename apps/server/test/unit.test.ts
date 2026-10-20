@@ -119,3 +119,40 @@ test('intake agent: lab values, ranges, units and medicines from report text', a
   assert.deepEqual(extractMedicines('Tab. Metformin 500 mg 1-0-1\nCap. Pantoprazole 40 mg'), ['Tab. Metformin 500 mg', 'Cap. Pantoprazole 40 mg']);
   assert.equal(extractDate('Date: 05/09/2026'), '2026-09-05');
 });
+
+// Persona regressions (colloquial Tamil/Hindi/English front-desk messages).
+import { bookingIntent as _bi, changeIntent as _ci, matchStaff as _ms } from '../src/engine/booking.ts';
+import { normalizeQuery as _nq } from '../src/lib/text.ts';
+import { extractObservations as _eo } from '../src/services/records.ts';
+import * as _safety from '../src/engine/safety.ts';
+
+test('persona: booking and change intents', () => {
+  for (const s of ['டாக்டர் பார்க்கணும் நாளைக்கு', 'checkup with Dr Kannan', 'need appt tomorrow']) assert.ok(_bi(s), s);
+  assert.ok(_ci('cancel my appointment'));
+  assert.ok(!_bi('cancel my appointment'));
+  const staff = [{ name: 'Dr. Ravi', specialty: 'Orthopaedics' }, { name: 'Dr. Meena', specialty: 'Paediatrics' }, { name: 'Dr. Suresh', specialty: 'Nephrology' }] as any[];
+  assert.deepEqual(_ms('my kid has fever', staff).map((s: any) => s.specialty), ['Paediatrics']);
+  assert.ok(!_ms('kidney stone', staff).some((s: any) => s.specialty === 'Paediatrics'));
+});
+
+test('persona: romanised queries are expanded', () => {
+  assert.match(_nq('doctor fees evvalavu'), /consultation fee/);
+  assert.match(_nq('OPD timing enna'), /timings/);
+});
+
+test('persona: Tamil-labelled report values are read', () => {
+  const obs = _eo('ஹீமோகுளோபின் 9.4 g/dL\nகிரியேட்டினின் 1.6 mg/dL');
+  const keys = [...(obs as any).values?.() ?? obs].map((o: any) => o.test);
+  assert.ok(keys.includes('hb') && keys.includes('creat'), JSON.stringify(keys));
+});
+
+test('LAB IDs with a space still extract', () => {
+  const action = { params: [{ name: 'id', required: true, pattern: '\\b(LAB-\\d{3,})\\b' }] } as any;
+  assert.equal(extractParams('is LAB 2041 ready', action).params.id, 'LAB-2041');
+});
+
+test('persona: safety catches colloquial clinical and emergency messages', () => {
+  for (const s of ['7 months pregnant and bleeding', 'கர்ப்பமா இருக்கேன் ரத்தம் வருது']) assert.ok(_safety.isEmergency(s), s);
+  for (const s of ['BP மாத்திரை நிறுத்தலாமா', 'my hba1c is 9 is it bad?', 'baby has 103 fever what to do']) assert.ok(_safety.asksMedicalAdvice(s) || _safety.isEmergency(s), s);
+  assert.ok(!_safety.isEmergency('what are OPD timings'));
+});
