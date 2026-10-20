@@ -118,6 +118,6 @@ export async function assignConversationToStaff(orgId: string, conversationId: s
   if (!s?.user_id) return null;
   await ctx.db.query('update conversations set assigned_to = $3 where id = $1 and org_id = $2', [conversationId, orgId, s.user_id]);
   publish(`org:${orgId}`, 'conversation.updated', { id: conversationId });
-  notifyUser(s.user_id, { title: 'New patient booked with you', link: `/app/inbox?c=${conversationId}` });
+  notifyUser(s.user_id, { title: 'New patient booked with you', link: `/app/inbox/${conversationId}` });
   return s.user_id;
 }

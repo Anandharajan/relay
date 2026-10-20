@@ -272,7 +272,18 @@ test('review routing: reports reach the booked doctor\'s queue until signed off'
     assert.equal(item.urgent_findings, 0); // a routine report still waits for review
     const counts = (await api('GET', '/api/visits/reviews/count')).data;
     assert.ok(counts.mine >= 1 && counts.all >= counts.mine);
-    assert.equal((await api('POST', `/api/visits/records/${item.id}/reviewed`, {})).status, 200);
+    const other = (await api('POST', '/api/visits/clients', { name: 'Unrelated review test', lang: 'en' })).data;
+    await api('POST', `/api/visits/clients/${other.id}/records`, { title: 'Unrelated routine report', text: 'Haemoglobin 13.1 g/dL 12.0 - 15.5' });
+    const unrelated = await waitFor(async () => (await api('GET', '/api/visits/reviews')).data.find((r: any) => r.client_id === other.id), 'unrelated review');
+    const { ctx } = await import('../src/ctx.ts');
+    // Exercise the HTTP permission boundary as an ordinary linked doctor, not an owner.
+    await ctx.db.query("update members set role = 'agent' where org_id = $1 and user_id = $2", [me.org.id, me.user.id]);
+    try {
+      assert.equal((await api('POST', `/api/visits/records/${unrelated.id}/reviewed`, {})).status, 403);
+      assert.equal((await api('POST', `/api/visits/records/${item.id}/reviewed`, {})).status, 200);
+    } finally {
+      await ctx.db.query("update members set role = 'owner' where org_id = $1 and user_id = $2", [me.org.id, me.user.id]);
+    }
     assert.equal((await api('POST', `/api/visits/records/${item.id}/reviewed`, {})).status, 409);
     assert.ok(!(await api('GET', '/api/visits/reviews')).data.some((r: any) => r.id === item.id));
   } finally {
