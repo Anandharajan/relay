@@ -1,113 +1,56 @@
 import { Link } from 'react-router-dom';
-import { api, closeStream, pct, useApi } from '../lib/api';
+import { useApi } from '../lib/api';
 import { useSession } from '../lib/session';
-import { Loading } from '../components/ui';
+import { terms } from '../lib/terms';
+import { AgentConsole } from '../components/AgentConsole';
 
-/** Onboarding checklist + headline numbers. */
+/** Home = the agent console, plus four numbers and what is left to set up. */
 export function Home() {
   const { me } = useSession();
-  const sources = useApi<any[]>('/api/knowledge');
-  const sims = useApi<any[]>('/api/simulations');
+  const T = terms(me);
   const stats = useApi<any>('/api/analytics?days=30');
-  const team = useApi<any>(me?.role === 'viewer' ? null : '/api/workspace/team');
-  if (!me) return <Loading />;
-  if (sources.loading || sims.loading || stats.loading || !stats.data) return <Loading />;
-
-  const readySources = (sources.data ?? []).filter((s) => s.status === 'ready' && s.type !== 'learned').length;
-  const demo = me.role === 'viewer';
-  const tour = [
-    { title: 'Chat as a patient', text: 'Open the demo hospital site and ask in தமிழ், English or हिंदी: book an appointment, ask the fees, check LAB-2041, or ask a medical question to see the safety stop.', href: '/demo', cta: 'Open hospital site ↗' },
-    { title: 'Watch the live queue', text: 'Tokens, who is with the doctor, and waiting-time estimates that move as consultations finish. Your booking appears here.', to: '/app/visits', cta: 'Open queue' },
-    { title: 'Read a doctor brief', text: 'Murugan Pillai has a critical potassium; Lakshmi Raman\'s HbA1c is rising. The intake and findings agents read the reports; nothing reaches the patient until a doctor approves.', to: '/app/clients', cta: 'Open patients' },
-    { title: 'Approve what patients are told', text: 'AI-drafted, non-diagnostic messages wait for a doctor to edit, approve or discard them.', to: '/app/approvals', cta: 'Open approvals' },
-    { title: 'Hear the telecaller', text: 'Reminder and follow-up calls with keypad answers (simulated here; Twilio in production).', to: '/app/calls', cta: 'Open calls' },
-  ];
-  const steps = [
-    { done: readySources > 0, title: 'Add knowledge', text: 'Crawl your help center, upload PDFs/DOCX or paste FAQs.', to: '/app/knowledge', cta: 'Add a source' },
-    { done: (sims.data ?? []).some((s) => s.status === 'done'), title: 'Run a simulation', text: 'Test 20–50 real questions and check the pass rate before going live.', to: '/app/simulations', cta: 'Run simulation' },
-    { done: (stats.data?.totals?.conversations ?? 0) > 0, title: 'Preview your widget', text: 'Chat with your own AI on a test page — no website needed. The conversation lands in your inbox.', to: '/preview', cta: 'Open preview' },
-    { done: false, title: 'Add staff and hours', text: 'Bookable calendars for doctors, faculty or staff: the AI offers these slots on chat, WhatsApp and calls.', to: '/app/settings/staff', cta: 'Add staff' },
-    { done: me.org.whatsappConnected, title: 'Go live on WhatsApp', text: 'Connect your WhatsApp Business number, or paste one script tag on your site.', to: '/app/settings/channels', cta: 'Connect' },
-    { done: (team.data?.members?.length ?? 0) > 1, title: 'Invite your team', text: 'AI and humans share one inbox. Approve drafts, take over, @AI in notes.', to: '/app/settings/team', cta: 'Invite' },
-  ];
-  const s = stats.data!;
+  const approvals = useApi<any>(T.healthcare ? '/api/visits/approvals' : null);
+  const sources = useApi<any[]>('/api/knowledge');
+  const staff = useApi<any[]>('/api/visits/staff');
+  if (!me) return null;
+  const s = stats.data?.totals;
+  const viewer = me.role === 'viewer';
+  const todo = viewer
+    ? []
+    : [
+        { done: (sources.data ?? []).some((x) => x.status === 'ready'), label: 'Add your FAQ', to: '/app/knowledge' },
+        { done: (staff.data ?? []).length > 0, label: `Add ${T.staffs.toLowerCase()}`, to: '/app/settings/staff' },
+        { done: me.org.whatsappConnected, label: 'Connect WhatsApp', to: '/app/settings/channels' },
+      ].filter((x) => !x.done);
 
   return (
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>Namaste, {me.user.name.split(' ')[0]} 👋</h1>
-          <p>Here's how {me.org.settings.botName} is doing for {me.org.name} over the last 30 days.</p>
+          <h1>What do you need?</h1>
+          <p>Type a patient message, paste a report, or ask for today’s brief. The agents do the rest.</p>
         </div>
-        <Link className="btn primary" to="/app/inbox">Open inbox</Link>
       </div>
 
-      <div className="grid4">
-        <div className="card stat"><div className="label">Conversations</div><div className="value">{s.totals.conversations}</div><div className="sub">last 30 days</div></div>
-        <div className="card stat"><div className="label">AI resolution rate</div><div className="value">{pct(s.resolutionRate)}</div><div className="sub">{s.totals.ai_resolved} resolved by AI</div></div>
-        <div className="card stat"><div className="label">CSAT</div><div className="value">{pct(s.csat)}</div><div className="sub">{s.totals.csat_count} ratings</div></div>
-        <div className="card stat"><div className="label">Needs a human</div><div className="value">{s.totals.escalated_open}</div><div className="sub">escalated, open</div></div>
+      <AgentConsole
+        mode="workspace"
+        extraExamples={viewer ? [] : [{ label: 'Brief me on today', text: 'Brief me on today' }]}
+        placeholder={T.healthcare ? 'e.g. “appointment venum tomorrow”, a pasted lab report, or “Brief me on today”' : 'Type a customer message, or “Brief me on today”'}
+      />
+
+      <div className="grid4 mini-stats">
+        <Link to="/app/inbox" className="card stat"><div className="label">Waiting for you</div><div className="value">{s?.escalated_open ?? '—'}</div></Link>
+        {T.healthcare && <Link to="/app/approvals" className="card stat"><div className="label">To approve</div><div className="value">{approvals.data?.messages?.length ?? '—'}</div></Link>}
+        <Link to="/app/visits" className="card stat"><div className="label">{T.visits}</div><div className="value">→</div></Link>
+        <Link to="/app/analytics" className="card stat"><div className="label">Solved by AI (30 d)</div><div className="value">{s ? `${Math.round((stats.data.resolutionRate ?? 0) * 100)}%` : '—'}</div></Link>
       </div>
 
-      {demo ? (
-        <div className="card pad stack">
-          <h2>Take the 2-minute tour</h2>
-          {tour.map((st, i) => (
-            <div className="row" key={st.title} style={{ alignItems: 'flex-start' }}>
-              <span className="badge" style={{ marginTop: 2 }}>{i + 1}</span>
-              <div className="grow">
-                <strong>{st.title}</strong>
-                <p className="muted small">{st.text}</p>
-              </div>
-              {st.href ? <a className="btn sm" href={st.href} target="_blank" rel="noreferrer">{st.cta}</a> : <Link className="btn sm" to={st.to!}>{st.cta}</Link>}
-            </div>
-          ))}
-          <div className="row" style={{ alignItems: 'flex-start' }}>
-            <span className="badge ok" style={{ marginTop: 2 }}>6</span>
-            <div className="grow">
-              <strong>Make it yours</strong>
-              <p className="muted small">Create a free workspace, add your FAQs or help-center URL, preview the widget, then go live. Your workspace is private to you and your team.</p>
-            </div>
-            <a className="btn sm primary" href="/signup" onClick={async (e) => { e.preventDefault(); await api('/api/auth/logout', { body: {} }).catch(() => {}); closeStream(); window.location.assign('/signup'); }}>Create workspace</a>
-          </div>
+      {todo.length > 0 && (
+        <div className="row wrap small" style={{ gap: 8 }}>
+          <span className="muted">To finish setup:</span>
+          {todo.map((t) => <Link key={t.label} to={t.to} className="chip">{t.label} →</Link>)}
         </div>
-      ) : (
-      <div className="card pad stack">
-        <h2>Get set up</h2>
-        {steps.map((st, i) => (
-          <div className="row" key={st.title} style={{ alignItems: 'flex-start' }}>
-            <span className={`badge ${st.done ? 'ok' : ''}`} style={{ marginTop: 2 }}>{st.done ? '✓' : i + 1}</span>
-            <div className="grow">
-              <strong>{st.title}</strong>
-              <p className="muted small">{st.text}</p>
-            </div>
-            <Link className="btn sm" to={st.to}>{st.cta}</Link>
-          </div>
-        ))}
-      </div>
       )}
-
-      <div className="grid2">
-        <div className="card pad stack">
-          <h3>Answer mode</h3>
-          <p className="muted small">
-            {me.org.settings.mode === 'auto'
-              ? `AI replies directly when confident (≥ ${Math.round(me.org.settings.confidenceThreshold * 100)}%) and escalates otherwise.`
-              : 'Draft mode: every AI reply waits for a teammate to approve it.'}
-          </p>
-          <Link to="/app/settings" className="small">Change in settings →</Link>
-        </div>
-        <div className="card pad stack">
-          <h3>Top unanswered questions</h3>
-          {s.unanswered.length ? (
-            <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
-              {s.unanswered.slice(0, 4).map((u: any) => <li key={u.question}>{u.question} <span className="muted">×{u.n}</span></li>)}
-            </ul>
-          ) : (
-            <p className="muted small">Nothing yet — questions the AI couldn't answer show up here so you can add knowledge.</p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

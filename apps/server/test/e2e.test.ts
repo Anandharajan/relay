@@ -492,3 +492,36 @@ test('public demo dashboard is read-only and hides admin data', async () => {
   assert.equal('demoEmail' in cfg.data, false);
   await api('POST', '/api/auth/logout', {});
 });
+
+test('agent pipelines: public message/report runs stream to done; day brief needs staff', async () => {
+  const run = async (path: string, text: string) => {
+    const r = await api('POST', path, { text });
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    return waitFor(async () => {
+      const s = (await api('GET', `${path}/${r.data.id}`)).data;
+      return s.status !== 'running' && s;
+    }, 'pipeline');
+  };
+  const book = await run('/api/public/runs', 'அப்பாயின்ட்மென்ட் வேண்டும், சர்க்கரை நோய் மருத்துவர்');
+  assert.equal(book.kind, 'message');
+  assert.equal(book.agents.find((a: any) => a.id === 'booking').status, 'done');
+  assert.ok(book.agents.filter((a: any) => a.stage === 1).length >= 3, 'parallel stage');
+  assert.match(book.report.find((s: any) => s.id === 'reply').body, /Dr\. Lakshmi Narayanan/);
+  const em = await run('/api/public/runs', 'My father has chest pain and is sweating');
+  assert.match(em.report.find((s: any) => s.id === 'reply').body, /108/);
+  assert.equal(em.agents.find((a: any) => a.id === 'knowledge').status, 'skipped');
+  const rep = await run('/api/public/runs', 'Potassium 6.9 mmol/L 3.5 - 5.1\nHbA1c 9.0 % 4.0 - 5.6\nTab. Metformin 500 mg');
+  assert.equal(rep.kind, 'report');
+  assert.ok(rep.report.find((s: any) => s.id === 'critical'));
+  assert.ok(rep.report.find((s: any) => s.id === 'draft'));
+  // "Brief me on today" is a normal message for the public; staff get the day pipeline.
+  const pub = await run('/api/public/runs', 'Brief me on today');
+  assert.equal(pub.kind, 'message');
+  const loggedIn = await api('POST', '/api/auth/login', { email: 'demo@relay.local', password: 'relay-demo-1234' });
+  assert.equal(loggedIn.status, 200);
+  const day = await run('/api/runs', 'Brief me on today');
+  assert.equal(day.kind, 'day');
+  assert.ok(day.report.find((s: any) => s.id === 'priorities'));
+  const res = await fetch(`${base}/api/runs/${day.id}/stream`, { headers: { cookie } });
+  assert.match(await res.text(), /event: run/);
+});

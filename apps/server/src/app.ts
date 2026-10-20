@@ -20,6 +20,7 @@ import { whatsapp } from './channels/whatsapp.ts';
 import { demoSiteKey } from './seed.ts';
 import { visits } from './routes/visits.ts';
 import { admin } from './routes/admin.ts';
+import { publicRuns, runsApi } from './routes/runs.ts';
 import { edge, publicVisit, voiceWebhooks } from './routes/public.ts';
 
 export function buildApp() {
@@ -60,6 +61,8 @@ export function buildApp() {
   app.route('/api/demo', demoControl);
   app.route('/api/visits', visits);
   app.route('/api/admin', admin);
+  app.route('/api/runs', runsApi);
+  app.route('/api/public/runs', publicRuns);
   app.route('/api/public', publicVisit);
   app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
 

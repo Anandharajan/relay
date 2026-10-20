@@ -6,16 +6,18 @@ import { useSession } from '../lib/session';
 import { Loading } from '../components/ui';
 
 const navFor = (T: ReturnType<typeof terms>) => [
-  { to: '/app', label: 'Home', icon: '🏠', end: true },
+  { to: '/app', label: 'Agents', icon: '✨', end: true },
   { to: '/app/inbox', label: 'Inbox', icon: '📥', count: true },
   { to: '/app/visits', label: T.visits, icon: '🗓️' },
   { to: '/app/clients', label: T.clients, icon: T.healthcare ? '🧑‍⚕️' : '👥' },
   ...(T.healthcare ? [{ to: '/app/approvals', label: 'Approvals', icon: '✅' }] : []),
-  { to: '/app/calls', label: 'Calls', icon: '📞' },
+];
+const moreNav = [
   { to: '/app/knowledge', label: 'Knowledge', icon: '📚' },
+  { to: '/app/calls', label: 'Calls', icon: '📞' },
+  { to: '/app/analytics', label: 'Analytics', icon: '📈' },
   { to: '/app/simulations', label: 'Simulations', icon: '🧪' },
   { to: '/app/actions', label: 'Actions', icon: '⚡' },
-  { to: '/app/analytics', label: 'Analytics', icon: '📈' },
   { to: '/app/settings', label: 'Settings', icon: '⚙️' },
 ];
 
@@ -105,10 +107,17 @@ export function Layout() {
               {n.count && attention > 0 && <span className="count">{attention}</span>}
             </NavLink>
           ))}
+          <details className="more" open={moreNav.some((n) => location.pathname.startsWith(n.to))}>
+            <summary>More</summary>
+            {moreNav.map((n) => (
+              <NavLink key={n.to} to={n.to} className={({ isActive }) => (isActive ? 'active' : '')}>
+                <span>{n.icon}</span> {n.label}
+              </NavLink>
+            ))}
+          </details>
         </nav>
         <div className="bottom">
           {me.isPlatformAdmin && <NavLink to="/admin" className="small admin-link">🛡️ Platform admin</NavLink>}
-          <a className="small" href="/demo" target="_blank" rel="noreferrer" style={{ padding: '0 10px' }}>Open demo hospital site ↗</a>
           {'Notification' in window && Notification.permission === 'default' && (
             <button className="btn sm ghost" onClick={() => Notification.requestPermission()}>🔔 Enable notifications</button>
           )}
@@ -126,9 +135,8 @@ export function Layout() {
         {me.role === 'viewer' && (
           <div className="card pad row wrap" style={{ gap: 10, marginBottom: 16, background: 'var(--accent-soft, #eef2ff)' }}>
             <span className="grow small">
-              <strong>You're exploring the {me.org.name} demo workspace</strong> — read-only, shared with other visitors. Nothing you see here is your data.
+              <strong>Demo workspace</strong> · read-only, shared with other visitors.
             </span>
-            <a className="btn sm" href="/demo" target="_blank" rel="noreferrer">Chat as a customer ↗</a>
             <a className="btn sm primary" href="/signup" onClick={async (e) => { e.preventDefault(); await api('/api/auth/logout', { body: {} }).catch(() => {}); closeStream(); window.location.assign('/signup'); }}>Create your workspace</a>
           </div>
         )}

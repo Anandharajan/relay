@@ -26,6 +26,7 @@ const agentInfo: Record<string, string> = {
   telecaller: 'Reminder and follow-up phone calls',
   channel: 'Delivery to WhatsApp / chat',
   jobs: 'Background jobs (ingest, simulations …)',
+  pipeline: 'Agent console runs (message, report and day-brief pipelines)',
 };
 
 const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : '—');

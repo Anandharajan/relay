@@ -57,7 +57,7 @@ function pickByNumber(text: string, n: number): number | null {
   return i >= 0 && i < n ? i : null;
 }
 
-function matchStaff(text: string, staff: Staff[]): Staff[] {
+export function matchStaff(text: string, staff: Staff[]): Staff[] {
   const lower = text.toLowerCase();
   const byName = staff.filter((s) => {
     const last = s.name.replace(/^dr\.?\s*/i, '').split(/\s+/).filter((w) => w.length > 2);
@@ -185,3 +185,8 @@ export async function followupReply(text: string, meta: Record<string, any> | un
   return { outcome, followupId: id };
 }
 
+
+/** Used by the agent pipeline to route a message to the booking agent. */
+export function bookingIntent(text: string): boolean {
+  return bookRe.test(text) && !changeRe.test(text);
+}

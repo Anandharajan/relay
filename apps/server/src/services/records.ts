@@ -163,6 +163,11 @@ function classify(text: string, obs: number): string {
 async function fileText(blobKey: string, name: string): Promise<string | null> {
   const data = await getBlobStore().get(blobKey);
   if (!data) return null;
+  return textFromBytes(data, name);
+}
+
+/** Text from an uploaded PDF, DOCX or text file (images return null: they need OCR or a vision model). */
+export async function textFromBytes(data: Uint8Array, name: string): Promise<string | null> {
   const ext = name.split('.').pop()?.toLowerCase();
   if (ext === 'pdf') {
     const { extractText, getDocumentProxy } = await import('unpdf');
