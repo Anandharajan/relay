@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.131.0",
-    "@electric-sql/pglite": "^0.3.0",
+    "@anthropic-ai/sdk": "^0.135.0",
+    "@electric-sql/pglite": "^0.5.10",
     "@hono/node-server": "^1.14.0",
     "aws4fetch": "^1.0.20",
     "hono": "^4.7.0",
@@ -20,7 +20,7 @@
     "mammoth": "^1.9.0",
     "node-html-parser": "^7.0.0",
     "postgres": "^3.4.5",
-    "unpdf": "^1.0.0",
+    "unpdf": "^1.9.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
