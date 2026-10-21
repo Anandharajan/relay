@@ -64,7 +64,7 @@ export function Desk() {
     },
     'copilot.started': (e: { conversationId: string; runId: string }) => {
       // Follow the patient who is typing right now.
-      if (!selected || e.conversationId === selected) {
+      if (!selected || e.conversationId === selected || !reply.trim()) {
         setSelected(e.conversationId);
         void openRun(e.runId);
       }
@@ -79,7 +79,7 @@ export function Desk() {
 
   const send = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selected || !reply.trim()) return;
+    if (!selected || !reply.trim() || detail.data?.conversation.id !== selected) return;
     try {
       await api(`/api/inbox/conversations/${selected}/messages`, { body: { content: reply.trim() } });
       setReply('');
@@ -90,7 +90,7 @@ export function Desk() {
     }
   };
 
-  const conv = detail.data?.conversation;
+  const conv = detail.data?.conversation.id === selected ? detail.data.conversation : undefined;
   const saved = conv?.meta?.copilot as { analysis: Analysis; message: string; at: string } | undefined;
   const liveForThis = copilot.run && (copilot.run as Run & { conversationId?: string }).conversationId === selected ? copilot.run : null;
 
