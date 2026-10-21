@@ -18,8 +18,12 @@ export function PatientChat({ siteKey, steps, title, onProgress }: { siteKey: st
   const next = steps[step];
   const visit = visitPath(chat.messages);
 
-  useEffect(() => onProgress?.(step), [step, onProgress]);
-  useEffect(() => end.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }), [chat.messages.length, chat.typing]);
+  useEffect(() => {
+    onProgress?.(step);
+  }, [step, onProgress]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  }, [chat.messages.length, chat.typing]);
 
   const doStep = (s: TourStep) => {
     if (s.attach) void chat.attach(new File([SAMPLE_PATIENT_REPORT], 'antenatal-blood-tests.txt', { type: 'text/plain' }));

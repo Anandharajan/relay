@@ -100,7 +100,7 @@ export function DoctorTour() {
       </div></div>
     );
   }
-  if (!sb) return <Loading label="Preparing your private hospital (about 10 seconds)…" />;
+  if (!sb) return <Loading label="Preparing your private hospital. This can take a moment…" />;
   const until = new Date(sb.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return (
     <div className="landing tour">
