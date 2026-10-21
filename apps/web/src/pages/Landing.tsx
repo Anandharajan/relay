@@ -65,23 +65,18 @@ export function Landing() {
         <h1>From the first question <em>to the doctor’s next step.</em></h1>
         <p className="lead">Relay answers routine questions, books appointments and brings patient reports to the right doctor. One shared workspace, with people in control of clinical decisions.</p>
         <div className="row wrap" style={{ justifyContent: 'center', gap: 12 }}>
-          <Link to="/tour/patient" className="btn primary">Try the patient journey →</Link>
-          <Link to="/tour/doctor" className="btn">Explore the doctor workspace</Link>
+          <Link to="/tour/doctor" className="btn primary">Open the doctor workspace →</Link>
+          <a href="#console" className="btn">Give the agents a task</a>
         </div>
         <p className="small muted">No sign-up for demos · Fictional patient data · Bring your own AI key or start without one</p>
       </header>
 
       <section className="section">
-        <div className="grid3 roles">
-          <Link to="/tour/patient" className="card role">
-            <span className="role-icon">🙋</span>
-            <strong>I’m a patient</strong>
-            <span className="small muted">Book, send a report and ask a question on chat. 90 seconds.</span>
-          </Link>
+        <div className="grid2 roles">
           <Link to="/tour/doctor" className="card role">
             <span className="role-icon">🩺</span>
             <strong>I’m a doctor</strong>
-            <span className="small muted">Your own private hospital: watch the patient’s booking and report reach you, then approve.</span>
+            <span className="small muted">Your own private hospital, no sign-up. Type as a patient in the chatbot and watch agents collect records, write your analysis and reply to the patient.</span>
           </Link>
           <a href="#console" className="card role">
             <span className="role-icon">🏥</span>

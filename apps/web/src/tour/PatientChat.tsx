@@ -10,7 +10,7 @@ function timeline(messages: ChatMessage[], activity: AgentActivity[]): (ChatMess
 }
 
 /** A phone-style patient chat that walks through `steps`, one suggested reply at a time. */
-export function PatientChat({ siteKey, steps, title, onProgress }: { siteKey: string | null; steps: TourStep[]; title: string; onProgress?: (step: number) => void }) {
+export function PatientChat({ siteKey, steps = [], suggestions = [], title, onProgress }: { siteKey: string | null; steps?: TourStep[]; suggestions?: string[]; title: string; onProgress?: (step: number) => void }) {
   const chat = usePatientChat(siteKey);
   const [text, setText] = useState('');
   const end = useRef<HTMLDivElement>(null);
@@ -63,12 +63,16 @@ export function PatientChat({ siteKey, steps, title, onProgress }: { siteKey: st
           <button className="chip next" disabled={!chat.ready || chat.busy} onClick={() => doStep(next)} title={next.why}>
             {next.label}
           </button>
+        ) : suggestions.length ? (
+          suggestions.map((s) => <button key={s} className="chip" disabled={!chat.ready || chat.busy} onClick={() => void chat.send(s)}>{s}</button>)
         ) : (
           <span className="small muted">That’s the patient journey. Try your own question.</span>
         )}
         {visit && <a className="chip" href={visit} target="_blank" rel="noreferrer">Open visit page ↗</a>}
       </div>
       <form className="phone-input" onSubmit={submit}>
+        <button type="button" className="btn" title="Send a sample (fictional) lab report" aria-label="Attach sample report" disabled={!chat.ready || chat.busy}
+          onClick={() => void chat.attach(new File([SAMPLE_PATIENT_REPORT], 'antenatal-blood-tests.txt', { type: 'text/plain' }))}>📎</button>
         <input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message…" aria-label="Message" disabled={!chat.ready} />
         <button className="btn primary" disabled={!chat.ready || chat.busy || !text.trim()} aria-label="Send">➤</button>
       </form>

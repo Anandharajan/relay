@@ -365,6 +365,19 @@ test('doctor sandbox: private hospital, live agent trace and descriptive notific
     await say('Can I stop my BP tablet?');
     const q = await waitFor(async () => (await api('GET', '/api/notifications')).data.items.find((n: any) => n.kind === 'clinical_question'), 'clinical question notification');
     assert.match(q.body, /BP tablet/);
+    // Doctor copilot: ran beside the assistant, collected records and wrote next steps; the patient got a simple reply.
+    const run = await waitFor(async () => {
+      const r = (await api('GET', `/api/runs?conversationId=${conversationId}`)).data;
+      return r?.status === 'done' && /BP tablet/.test(JSON.stringify(r)) || (r?.status === 'done' && r.report.some((x: any) => x.id === 'next') && r);
+    }, 'copilot run');
+    const latest = (await api('GET', `/api/runs?conversationId=${conversationId}`)).data;
+    assert.equal(latest.kind, 'copilot');
+    assert.ok(latest.agents.find((x: any) => x.id === 'records').status === 'done');
+    assert.ok(latest.report.find((x: any) => x.id === 'next')?.items.length);
+    assert.match(latest.report.find((x: any) => x.id === 'reply')?.body ?? '', /medical advice|clinical team/);
+    assert.ok(run);
+    const conv = (await api('GET', `/api/inbox/conversations/${conversationId}`)).data.conversation;
+    assert.ok(conv.meta.copilot?.analysis?.summary, 'analysis saved on the conversation');
     assert.equal(q.link, `/app/inbox/${conversationId}`);
 
     const list = (await api('GET', '/api/notifications')).data;

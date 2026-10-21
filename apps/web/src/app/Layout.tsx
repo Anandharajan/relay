@@ -5,9 +5,11 @@ import { api, closeStream, useEvents } from '../lib/api';
 import { useSession } from '../lib/session';
 import { Loading } from '../components/ui';
 import { NotificationBell } from '../components/Notifications';
+import { ChatDock } from '../components/ChatDock';
 
 const navFor = (T: ReturnType<typeof terms>) => [
   { to: '/app', label: 'Agents', icon: '✨', end: true },
+  ...(T.healthcare ? [{ to: '/app/desk', label: 'Live desk', icon: '🩺' }] : []),
   { to: '/app/inbox', label: 'Inbox', icon: '📥', count: true },
   { to: '/app/visits', label: T.visits, icon: '🗓️' },
   { to: '/app/clients', label: T.clients, icon: T.healthcare ? '🧑‍⚕️' : '👥' },
@@ -73,11 +75,8 @@ export function Layout() {
     navigate(wasDemo ? '/' : '/login');
   };
 
-  // Inside the doctor tour the workspace is shown in a frame: no sidebar, just the page.
-  const embedded = window.self !== window.top;
-
   return (
-    <div className={`shell ${embedded ? 'embedded' : ''}`}>
+    <div className="shell">
       <div className="mobile-bar">
         <button className="btn sm" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">☰</button>
         <strong>{me.org.name}</strong>
@@ -145,12 +144,13 @@ export function Layout() {
             <a className="btn sm primary" href="/signup" onClick={async (e) => { e.preventDefault(); await api('/api/auth/logout', { body: {} }).catch(() => {}); closeStream(); window.location.assign('/signup'); }}>Create your workspace</a>
           </div>
         )}
-        {me.org.sandboxExpiresAt && !embedded && (
+        {me.org.sandboxExpiresAt && (
           <div className="card pad small" style={{ marginBottom: 16 }}>
             🔒 Private sandbox. It and everything in it is deleted at {new Date(me.org.sandboxExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. <a href="/signup">Create your own workspace</a> to keep your work.
           </div>
         )}
         <Outlet />
+        {(me.org.sandboxExpiresAt || me.role === 'viewer') && <ChatDock siteKey={me.org.siteKey} defaultOpen={new URLSearchParams(location.search).get('chat') === 'open'} />}
       </main>
     </div>
   );

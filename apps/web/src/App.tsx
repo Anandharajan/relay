@@ -1,3 +1,4 @@
+import { Desk } from './app/Desk';
 import { DoctorTour, PatientTour } from './tour/Tour';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Landing } from './pages/Landing';
@@ -41,6 +42,7 @@ export function App() {
         <Route path="clients" element={<Clients />} />
         <Route path="clients/:id" element={<ClientDetail />} />
         <Route path="approvals" element={<Approvals />} />
+        <Route path="desk" element={<Desk />} />
         <Route path="calls" element={<Calls />} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="inbox/:id" element={<Inbox />} />

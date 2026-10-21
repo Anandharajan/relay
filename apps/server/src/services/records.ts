@@ -270,6 +270,12 @@ export async function processRecord(payload: { recordId: string }) {
   }
   await routeRecord(rec.org_id, rec);
   publish(`org:${rec.org_id}`, 'records.updated', { clientId: rec.client_id, findings: created });
+  // A report the patient sent in chat: let the doctor copilot re-analyse with it included.
+  if (convId && rec.uploaded_by === 'patient' && o.settings.copilot !== false) {
+    const { getConversation } = await import('./conversations.ts');
+    const conv = await getConversation(rec.org_id, convId);
+    if (conv) (await import('../engine/copilot.ts')).startCopilot(o, conv, `Attached report: ${rec.title}`);
+  }
   await syncReportContext(rec, 'processed');
 }
 

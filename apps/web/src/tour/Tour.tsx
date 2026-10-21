@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, closeStream } from '../lib/api';
 import { useSession } from '../lib/session';
 import { Loading } from '../components/ui';
@@ -24,8 +24,7 @@ function TourNav() {
     <nav className="l-nav">
       <Link to="/" className="brandmark" style={{ padding: 0 }}><img src="/icon.svg" alt="" /> Relay</Link>
       <div className="links">
-        <Link to="/tour/patient">Patient</Link>
-        <Link to="/tour/doctor">Doctor</Link>
+        <Link to="/tour/doctor">Doctor demo</Link>
         <Link className="btn primary" to="/signup">Start free</Link>
       </div>
     </nav>
@@ -66,20 +65,11 @@ export function PatientTour() {
   );
 }
 
-const panes = [
-  { path: '/app/approvals', label: 'Reports & approvals' },
-  { path: '/app/inbox', label: 'Inbox' },
-  { path: '/app/visits', label: 'Today’s queue' },
-];
-
-/** /tour/doctor — a private sandbox: patient chat on the left, the doctor's workspace on the right. */
+/** /tour/doctor — no sign-up: claim a private sandbox, then open the doctor's Live desk with the patient chatbot docked. */
 export function DoctorTour() {
   const { refresh } = useSession();
-  const [sb, setSb] = useState<{ siteKey: string; doctor: string; expiresAt: string } | null>(null);
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const [pane, setPane] = useState(panes[0]!.path);
-  const [at, setAt] = useState(0);
-  const onProgress = useCallback((n: number) => setAt(n), []);
   const [waited, setWaited] = useState(0);
   useEffect(() => {
     // A ready sandbox is handed out at once; if none is ready, ask again every few seconds.
@@ -89,12 +79,12 @@ export function DoctorTour() {
     const attempt = async () => {
       if (cancelled) return;
       try {
-        const r = await api<{ status: 'ready' | 'preparing'; siteKey: string; doctor: string; expiresAt: string; retryAfterMs?: number }>('/api/auth/sandbox', { body: {} });
+        const r = await api<{ status: 'ready' | 'preparing'; retryAfterMs?: number }>('/api/auth/sandbox', { body: {} });
         if (cancelled) return;
         if (r.status === 'ready') {
           closeStream();
           await refresh();
-          if (!cancelled) setSb(r);
+          if (!cancelled) navigate('/app/desk?chat=open', { replace: true });
           return;
         }
         if (Date.now() - started > 120_000) throw new Error('Preparing a private hospital is taking longer than usual. Please try again in a minute.');
@@ -117,33 +107,9 @@ export function DoctorTour() {
       <div className="auth"><div className="card stack">
         <h1>Sandbox unavailable</h1>
         <p className="muted">{error}</p>
-        <Link className="btn primary" to="/tour/patient">Try the patient demo instead</Link>
+        <Link className="btn primary" to="/">Back to the home page</Link>
       </div></div>
     );
   }
-  if (!sb) return <Loading label={waited ? `Building your private hospital (${waited} s, usually under a minute)…` : 'Opening your private hospital…'} />;
-  const until = new Date(sb.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return (
-    <div className="landing tour">
-      <TourNav />
-      <div className="tour-banner small">
-        🔒 Private sandbox until {until}. You are signed in as <strong>{sb.doctor}</strong>. Send messages as the patient on the left and act as the doctor on the right.
-      </div>
-      <section className="tour-split">
-        <div className="stack">
-          <PatientChat siteKey={sb.siteKey} steps={patientSteps} title="Poonthalir Hospital (sandbox)" onProgress={onProgress} />
-          <p className="small muted tour-hint">
-            {at < 3 ? 'Book as the patient: the conversation is assigned to you.' : at < 4 ? 'Send the report: it lands in your review queue.' : 'Open the patient from your queue, mark the report reviewed, and approve the drafted message.'}
-          </p>
-        </div>
-        <div className="tour-pane card">
-          <div className="row wrap tour-tabs">
-            {panes.map((p) => <button key={p.path} className={`btn sm ${pane === p.path ? 'primary' : 'ghost'}`} onClick={() => setPane(p.path)}>{p.label}</button>)}
-            <a className="btn sm ghost" href="/app" target="_blank" rel="noreferrer">Open full workspace ↗</a>
-          </div>
-          <iframe key={pane} title="Doctor workspace" src={pane} />
-        </div>
-      </section>
-    </div>
-  );
+  return <Loading label={waited ? `Building your private hospital (${waited} s, usually under a minute)…` : 'Opening your private hospital…'} />;
 }

@@ -391,12 +391,6 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .tour-steps li.now > span { background: var(--brand); color: #fff; border-color: var(--brand); }
 .tour-steps li.done > span { background: var(--ok, #16a34a); color: #fff; border-color: transparent; }
 .tour-steps small { display: block; color: var(--muted); }
-.tour-banner { padding: 10px 16px; background: var(--brand-soft); color: var(--text); text-align: center; }
-.tour-split { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 16px; padding: 16px; align-items: start; }
-.tour-hint { text-align: center; }
-.tour-pane { display: flex; flex-direction: column; min-height: 640px; overflow: hidden; }
-.tour-tabs { gap: 6px; padding: 10px; border-bottom: 1px solid var(--border); }
-.tour-pane iframe { flex: 1; width: 100%; min-height: 600px; border: 0; background: var(--bg); }
 .phone { display: flex; flex-direction: column; height: 620px; max-height: 80vh; border: 1px solid var(--border); border-radius: 24px; overflow: hidden; background: var(--bg); box-shadow: 0 10px 30px rgba(0,0,0,.08); }
 .phone-head { display: flex; gap: 10px; align-items: center; padding: 12px 14px; background: #0f766e; color: #fff; }
 .phone-head div { display: flex; flex-direction: column; }
@@ -414,11 +408,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .chip.next { background: var(--brand); color: #fff; border-color: var(--brand); animation: pulse 1.6s infinite; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand) 20%, transparent); } }
 .phone-input { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--border); }
-.shell.embedded { display: block; }
-.shell.embedded .sidebar, .shell.embedded .mobile-bar { display: none; }
-.shell.embedded .main { padding: 14px; }
 @media (max-width: 860px) {
-  .tour-grid, .tour-split { grid-template-columns: 1fr; }
+  .tour-grid { grid-template-columns: 1fr; }
   .tour-grid > .phone { order: -1; }
   .phone { height: 560px; }
 }
@@ -442,3 +433,37 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .agent-trace.failed { border-color: var(--bad, #dc2626); }
 .agent-trace ol { margin: 4px 0 0; padding-left: 18px; }
 .activity .agent-trace { flex: 1; }
+
+/* ── Live desk and the docked patient chatbot ────────────────────────────── */
+.desk-grid { display: grid; grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(0, 1.15fr); gap: 14px; align-items: start; }
+.desk-list { padding: 6px; display: flex; flex-direction: column; gap: 2px; max-height: 72vh; overflow-y: auto; }
+.desk-conv { text-align: left; font: inherit; color: inherit; background: none; border: 0; border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+.desk-conv:hover { background: var(--bg); }
+.desk-conv.active { background: var(--accent-soft, #eef2ff); }
+.desk-conv .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.desk-chat { display: flex; flex-direction: column; min-height: 520px; max-height: 72vh; overflow: hidden; }
+.desk-head { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.desk-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.desk-messages .bubble small { display: block; font-size: 11px; }
+.desk-messages .bubble.in { align-self: flex-start; }
+.desk-messages .bubble.out { align-self: flex-end; background: var(--accent-soft, #eef2ff); color: inherit; }
+.desk-messages .bubble.sys { align-self: center; font-size: 12px; color: var(--muted); background: none; border: 1px dashed var(--border); }
+.desk-reply { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
+.desk-copilot .console-out { grid-template-columns: 1fr; }
+.desk-copilot .stage-agents { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.chat-dock { position: fixed; right: 18px; bottom: 18px; z-index: 60; }
+.chat-dock-panel { width: min(380px, calc(100vw - 24px)); background: var(--surface); border: 1px solid var(--border); border-radius: 26px; box-shadow: 0 16px 40px rgba(0,0,0,.18); overflow: hidden; }
+.chat-dock-panel[hidden] { display: none; }
+.chat-dock-bar { padding: 6px 10px 6px 14px; }
+.chat-dock-panel .phone { height: min(560px, 70vh); border: 0; border-radius: 0; box-shadow: none; }
+.chat-dock-launch { border-radius: 999px; padding: 12px 18px; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+@media (max-width: 1100px) { .desk-grid { grid-template-columns: minmax(180px, 220px) minmax(0, 1fr); } .desk-copilot { grid-column: 1 / -1; } }
+@media (max-width: 720px) { .desk-grid { grid-template-columns: 1fr; } .chat-dock { right: 12px; bottom: 12px; } }
+/* Patient chatbot open on a wide screen: keep the desk clear of it. */
+@media (min-width: 1100px) {
+  .shell:has(.chat-dock.open) .main { padding-right: 410px; }
+  .shell:has(.chat-dock.open) .desk-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
+  .shell:has(.chat-dock.open) .desk-list { grid-column: 1 / -1; flex-direction: row; overflow-x: auto; max-height: none; }
+  .shell:has(.chat-dock.open) .desk-conv { min-width: 210px; }
+  .shell:has(.chat-dock.open) .desk-copilot { grid-column: auto; }
+}

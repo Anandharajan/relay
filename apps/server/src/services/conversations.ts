@@ -169,6 +169,11 @@ export async function handleCustomerMessage(org: Org, conv: Conversation, conten
     }
   }
   const msg = await addMessage(conv, 'customer', content);
+  // Doctor copilot works beside the patient-facing assistant (healthcare workspaces).
+  if (org.settings.vertical === 'healthcare' && org.settings.copilot !== false) {
+    const { startCopilot } = await import('../engine/copilot.ts');
+    startCopilot(org, conv, content);
+  }
   if (conv.status === 'ai') {
     scheduleAi(org, conv, content);
   } else {

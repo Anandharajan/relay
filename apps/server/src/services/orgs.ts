@@ -6,6 +6,8 @@ import { createLlm, providerCatalog, type Llm } from '../adapters/llm.ts';
 export interface OrgSettings {
   /** Show each agent's work inside the patient's chat (demo and sandboxes only). */
   showAgentTrace?: boolean;
+  /** Doctor copilot on every patient message (healthcare). Defaults to on. */
+  copilot?: boolean;
   botName: string;
   brandColor: string;
   greeting: string;

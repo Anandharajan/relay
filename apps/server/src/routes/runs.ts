@@ -7,7 +7,7 @@ import { fail, requireOrg, requireUser, type AppEnv } from '../http.ts';
 import { getOrg, type Org } from '../services/orgs.ts';
 import { textFromBytes } from '../services/records.ts';
 import { DEMO_ORG_NAME } from '../seed.ts';
-import { classify, getRun, recentRuns, snapshot, startPipeline } from '../engine/pipeline.ts';
+import { classify, getRun, latestForConversation, recentRuns, snapshot, startPipeline } from '../engine/pipeline.ts';
 
 const MAX_TEXT = 8000;
 
@@ -83,7 +83,11 @@ function stream(c: Context, id: string) {
 export const runsApi = new Hono<AppEnv>();
 runsApi.use(requireUser, requireOrg);
 
-runsApi.get('/', (c) => c.json(recentRuns(c.get('org').id)));
+runsApi.get('/', (c) => {
+  const conversationId = c.req.query('conversationId');
+  if (conversationId) return c.json(latestForConversation(c.get('org').id, conversationId));
+  return c.json(recentRuns(c.get('org').id));
+});
 
 runsApi.post('/', async (c) => {
   const org = c.get('org');
