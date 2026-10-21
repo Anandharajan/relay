@@ -84,8 +84,10 @@ export function DoctorTour() {
   useEffect(() => {
     // A ready sandbox is handed out at once; if none is ready, ask again every few seconds.
     let cancelled = false;
+    let pollTimer: number | undefined;
     const started = Date.now();
     const attempt = async () => {
+      if (cancelled) return;
       try {
         const r = await api<{ status: 'ready' | 'preparing'; siteKey: string; doctor: string; expiresAt: string; retryAfterMs?: number }>('/api/auth/sandbox', { body: {} });
         if (cancelled) return;
@@ -97,7 +99,7 @@ export function DoctorTour() {
         }
         if (Date.now() - started > 120_000) throw new Error('Preparing a private hospital is taking longer than usual. Please try again in a minute.');
         setWaited(Math.round((Date.now() - started) / 1000));
-        window.setTimeout(() => void attempt(), r.retryAfterMs ?? 3000);
+        pollTimer = window.setTimeout(() => void attempt(), r.retryAfterMs ?? 3000);
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
       }
@@ -105,6 +107,7 @@ export function DoctorTour() {
     void attempt();
     return () => {
       cancelled = true;
+      window.clearTimeout(pollTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

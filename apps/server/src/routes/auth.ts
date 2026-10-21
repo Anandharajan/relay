@@ -99,6 +99,7 @@ auth.post('/sandbox', async (c) => {
   if (!config.demo.seed) fail(404, 'The demo is not enabled on this server');
   const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
   if (!rateLimit(`sandbox-poll:${ip}`, 120, 10 * 60_000).ok) fail(429, 'Please wait a moment and try again.');
+  if (!rateLimit(`sandbox:${ip}`, 5, 60 * 60_000, false).ok) fail(429, 'You have opened several sandboxes already. Please reuse your current tab or try later.');
   let sb: Awaited<ReturnType<typeof createSandbox>>;
   try {
     sb = await createSandbox();

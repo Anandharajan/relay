@@ -7,6 +7,15 @@ import { detectDrift, extractParams, matchActionByKeywords, renderTemplate, type
 import { judge } from '../src/jobs/simulate.ts';
 import { smalltalk, wantsHuman } from '../src/engine/i18n.ts';
 import type { Passage } from '../src/engine/retrieve.ts';
+import { rateLimit } from '../src/lib/ratelimit.ts';
+
+test('sandbox quota can be checked before consuming a pooled hospital', () => {
+  const key = `sandbox-quota-${Date.now()}`;
+  assert.equal(rateLimit(key, 1, 60_000, false).ok, true);
+  assert.equal(rateLimit(key, 1, 60_000, false).ok, true);
+  assert.equal(rateLimit(key, 1, 60_000).ok, true);
+  assert.equal(rateLimit(key, 1, 60_000, false).ok, false);
+});
 
 test('redacts Indian PII and restores it', () => {
   const input = 'Mail me at asha@example.com or call +91 98765 43210. PAN ABCDE1234F, card 4111 1111 1111 1111, upi asha@okicici';
