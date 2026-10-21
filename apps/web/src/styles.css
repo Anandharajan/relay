@@ -224,6 +224,14 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .price .amount { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; }
 .price ul { margin: 0; padding-left: 18px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
 .price.featured { border: 2px solid var(--brand); }
+.price > .btn { margin-top: auto; text-align: center; }
+.pricing-notes { margin-top: 24px; line-height: 1.65; }
+.pricing-notes p { color: var(--muted); }
+.pricing-notes strong { color: var(--text); }
+.landing-faq { max-width: 800px; margin: 28px auto 0; }
+.landing-faq details { padding: 18px 0; border-bottom: 1px solid var(--border); }
+.landing-faq summary { cursor: pointer; font-weight: 600; }
+.landing-faq p { margin-top: 12px; color: var(--muted); line-height: 1.65; }
 .chat-mock { max-width: 420px; width: 100%; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; text-align: left; }
 .chat-mock .q { align-self: flex-end; background: var(--brand); color: #fff; padding: 8px 12px; border-radius: 14px 14px 4px 14px; max-width: 85%; }
 .chat-mock .a { align-self: flex-start; background: var(--surface-2); padding: 8px 12px; border-radius: 14px 14px 14px 4px; max-width: 90%; }
