@@ -378,6 +378,16 @@ test('doctor sandbox: private hospital, live agent trace and descriptive notific
     assert.ok(run);
     const conv = (await api('GET', `/api/inbox/conversations/${conversationId}`)).data.conversation;
     assert.ok(conv.meta.copilot?.analysis?.summary, 'analysis saved on the conversation');
+    const { saveAnalysis } = await import('../src/engine/copilot.ts');
+    const { patchMeta } = await import('../src/services/conversations.ts');
+    const newer = new Date(Date.now() + 10_000).toISOString();
+    const note = { engine: 'Rules', summary: 'newer analysis', concerns: [], nextSteps: [], askPatient: [] };
+    await saveAnalysis(me.org.id, conversationId!, latest.id, note, 'newer message', newer);
+    await saveAnalysis(me.org.id, conversationId!, latest.id, { ...note, summary: 'stale analysis' }, 'older message', new Date().toISOString());
+    await patchMeta(conv, { reviewFlag: 'concurrent-test' });
+    const preserved = (await api('GET', `/api/inbox/conversations/${conversationId}`)).data.conversation;
+    assert.equal(preserved.meta.copilot.analysis.summary, 'newer analysis');
+    assert.equal(preserved.meta.reviewFlag, 'concurrent-test');
     assert.equal(q.link, `/app/inbox/${conversationId}`);
 
     const list = (await api('GET', '/api/notifications')).data;

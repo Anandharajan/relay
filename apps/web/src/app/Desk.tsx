@@ -37,7 +37,9 @@ export function Desk() {
   const copilot = useRunFollower('/api/runs');
   const [reply, setReply] = useState('');
   const bottom = useRef<HTMLDivElement>(null);
-  useEffect(() => bottom.current?.scrollIntoView({ block: 'end' }), [detail.data?.messages.length, selected]);
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ block: 'end' });
+  }, [detail.data?.messages.length, selected]);
   const readOnly = me?.role === 'viewer';
 
   const openRun = useCallback(async (runId: string) => {

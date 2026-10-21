@@ -12,7 +12,7 @@ export interface AgentActivity {
 
 export interface ChatMessage {
   id: string;
-  role: 'customer' | 'ai' | 'agent';
+  role: 'customer' | 'ai' | 'agent' | 'human';
   content: string;
   created_at: string;
 }
@@ -48,7 +48,7 @@ export function usePatientChat(siteKey: string | null) {
 
   // Patients only see the conversation itself, never internal system lines.
   const add = useCallback((m: ChatMessage) => {
-    if (!['customer', 'ai', 'agent'].includes(m.role)) return;
+    if (!['customer', 'ai', 'agent', 'human'].includes(m.role)) return;
     setMessages((list) => (list.some((x) => x.id === m.id) ? list : [...list, m]));
   }, []);
 

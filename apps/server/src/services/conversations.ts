@@ -97,8 +97,8 @@ export async function setStatus(conv: Conversation, status: Conversation['status
 }
 
 export async function patchMeta(conv: Conversation, patch: Record<string, unknown>) {
-  conv.meta = { ...conv.meta, ...patch };
-  await ctx.db.query('update conversations set meta = $2::jsonb where id = $1', [conv.id, conv.meta]);
+  const saved = await ctx.db.one<{ meta: Conversation['meta'] }>('update conversations set meta = meta || $2::jsonb where id = $1 returning meta', [conv.id, patch]);
+  conv.meta = saved?.meta ?? { ...conv.meta, ...patch };
   publish(`org:${conv.org_id}`, 'conversation.updated', { id: conv.id, meta: conv.meta });
 }
 
