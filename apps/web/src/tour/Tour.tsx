@@ -80,14 +80,32 @@ export function DoctorTour() {
   const [pane, setPane] = useState(panes[0]!.path);
   const [at, setAt] = useState(0);
   const onProgress = useCallback((n: number) => setAt(n), []);
+  const [waited, setWaited] = useState(0);
   useEffect(() => {
-    api<{ siteKey: string; doctor: string; expiresAt: string }>('/api/auth/sandbox', { body: {} })
-      .then(async (r) => {
-        closeStream();
-        await refresh();
-        setSb(r);
-      })
-      .catch((e) => setError((e as Error).message));
+    // A ready sandbox is handed out at once; if none is ready, ask again every few seconds.
+    let cancelled = false;
+    const started = Date.now();
+    const attempt = async () => {
+      try {
+        const r = await api<{ status: 'ready' | 'preparing'; siteKey: string; doctor: string; expiresAt: string; retryAfterMs?: number }>('/api/auth/sandbox', { body: {} });
+        if (cancelled) return;
+        if (r.status === 'ready') {
+          closeStream();
+          await refresh();
+          if (!cancelled) setSb(r);
+          return;
+        }
+        if (Date.now() - started > 120_000) throw new Error('Preparing a private hospital is taking longer than usual. Please try again in a minute.');
+        setWaited(Math.round((Date.now() - started) / 1000));
+        window.setTimeout(() => void attempt(), r.retryAfterMs ?? 3000);
+      } catch (e) {
+        if (!cancelled) setError((e as Error).message);
+      }
+    };
+    void attempt();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -100,7 +118,7 @@ export function DoctorTour() {
       </div></div>
     );
   }
-  if (!sb) return <Loading label="Preparing your private hospital. This can take a moment…" />;
+  if (!sb) return <Loading label={waited ? `Building your private hospital (${waited} s, usually under a minute)…` : 'Opening your private hospital…'} />;
   const until = new Date(sb.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return (
     <div className="landing tour">

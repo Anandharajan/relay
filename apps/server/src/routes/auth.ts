@@ -1,4 +1,5 @@
-import { createSandbox, SANDBOX_DOCTOR } from '../services/sandbox.ts';
+import { createSandbox, POOL_SIZE, SANDBOX_DOCTOR } from '../services/sandbox.ts';
+import { enqueueOnce } from '../jobs/runner.ts';
 import { Hono } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
 import { z } from 'zod';
@@ -89,21 +90,27 @@ auth.post('/demo', async (c) => {
   return c.json({ ok: true });
 });
 
-/** A private copy of the demo hospital, signed in as its doctor. Nothing is shared with other visitors. */
+/**
+ * A private copy of the demo hospital, signed in as its doctor. Nothing is shared with other visitors.
+ * Copies are built ahead of time; when none is ready this answers 202 and the page asks again.
+ */
 auth.post('/sandbox', async (c) => {
   if (c.req.header('x-relay-csrf') !== '1') fail(403, 'Missing CSRF header');
   if (!config.demo.seed) fail(404, 'The demo is not enabled on this server');
   const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
-  if (!rateLimit(`sandbox:${ip}`, 5, 60 * 60_000).ok) fail(429, 'You have opened several sandboxes already. Please reuse your current tab or try later.');
-  let sb;
+  if (!rateLimit(`sandbox-poll:${ip}`, 120, 10 * 60_000).ok) fail(429, 'Please wait a moment and try again.');
+  let sb: Awaited<ReturnType<typeof createSandbox>>;
   try {
     sb = await createSandbox();
   } catch (e) {
     fail(429, (e as Error).message);
   }
+  if (POOL_SIZE > 0) await enqueueOnce('sandbox_fill'); // refill behind every visitor
+  if (!sb) return c.json({ status: 'preparing', retryAfterMs: 3000 }, 202);
+  if (!rateLimit(`sandbox:${ip}`, 5, 60 * 60_000).ok) fail(429, 'You have opened several sandboxes already. Please reuse your current tab or try later.');
   await startSession(c, sb.userId);
   setCookie(c, ORG_COOKIE, sb.org.id, { path: '/', sameSite: 'Lax', secure });
-  return c.json({ siteKey: sb.org.site_key, doctor: SANDBOX_DOCTOR, expiresAt: sb.expiresAt.toISOString() });
+  return c.json({ status: 'ready', siteKey: sb.org.site_key, doctor: SANDBOX_DOCTOR, expiresAt: sb.expiresAt.toISOString() });
 });
 
 auth.post('/logout', (c) => {

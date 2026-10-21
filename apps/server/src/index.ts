@@ -5,11 +5,11 @@ import { ctx } from './ctx.ts';
 import { openDb } from './db.ts';
 import { buildApp } from './app.ts';
 import { initBus } from './lib/events.ts';
-import { drainJobs, registerJob, startJobs, enqueueOnce } from './jobs/runner.ts';
+import { drainJobs, registerJob, startJobs, enqueue, enqueueOnce } from './jobs/runner.ts';
 import { ingestSource } from './jobs/ingest.ts';
 import { runSimulation } from './jobs/simulate.ts';
 import { autoResolveIdle, resyncStaleSources, retentionPurge } from './jobs/maintenance.ts';
-import { purgeSandboxes } from './services/sandbox.ts';
+import { fillSandboxPool, purgeSandboxes } from './services/sandbox.ts';
 import { seedDemo } from './seed.ts';
 import { visitsTick } from './jobs/visits.ts';
 import { processRecord } from './services/records.ts';
@@ -36,6 +36,10 @@ registerJob('resync', resyncStaleSources);
 registerJob('sandbox_purge', async () => {
   await purgeSandboxes();
 });
+// Builds one pooled sandbox per run and re-queues itself until the pool is full.
+registerJob('sandbox_fill', async () => {
+  if (config.demo.seed && (await fillSandboxPool())) await enqueue('sandbox_fill');
+});
 registerJob('visits_tick', visitsTick);
 registerJob('record_process', processRecord);
 registerJob('voice_call', async (p) => {
@@ -48,8 +52,11 @@ if (config.role !== 'web') {
     { everyMs: 6 * 3600_000, run: () => enqueueOnce('retention') },
     { everyMs: 3600_000, run: () => enqueueOnce('resync') },
     { everyMs: 5 * 60_000, run: () => enqueueOnce('sandbox_purge') },
+    { everyMs: 2 * 60_000, run: () => enqueueOnce('sandbox_fill') },
     { everyMs: 60_000, run: () => enqueueOnce('visits_tick') },
   ]);
+  // Have private demo hospitals ready as soon as the server is up.
+  if (config.demo.seed) await enqueueOnce('sandbox_fill');
 }
 
 // Workers expose only a health check; web/all serve the full app.

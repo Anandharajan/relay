@@ -9,6 +9,8 @@ import type { AddressInfo } from 'node:net';
 import { createServer } from 'node:http';
 
 const PORT = 8791;
+// Build sandboxes on demand in tests instead of keeping a pre-built pool.
+process.env.SANDBOX_POOL = '0';
 process.env.PORT = String(PORT);
 process.env.PUBLIC_URL = `http://localhost:${PORT}`;
 process.env.DATA_DIR = ':memory:';
@@ -654,4 +656,22 @@ test('agent pipelines: public message/report runs stream to done; day brief need
   assert.ok(day.report.find((s: any) => s.id === 'priorities'));
   const res = await fetch(`${base}/api/runs/${day.id}/stream`, { headers: { cookie } });
   assert.match(await res.text(), /event: run/);
+});
+
+test('sandbox pool: pre-built sandboxes are claimed instantly and replaced when stale', async () => {
+  const { ctx } = await import('../src/ctx.ts');
+  const { buildSandbox, claimSandbox, purgeSandboxes } = await import('../src/services/sandbox.ts');
+  assert.equal(await claimSandbox(), null); // nothing pooled
+  const id = await buildSandbox();
+  const t0 = Date.now();
+  const sb = await claimSandbox();
+  assert.equal(sb?.org.id, id);
+  assert.ok(Date.now() - t0 < 2000, 'claim is fast');
+  assert.ok(sb!.expiresAt.getTime() > Date.now());
+  // A pooled copy that is too old is rebuilt rather than handed out.
+  const old = await buildSandbox();
+  await ctx.db.query(`update orgs set created_at = now() - interval '13 hours' where id = $1`, [old]);
+  await purgeSandboxes();
+  assert.equal(await ctx.db.one('select 1 from orgs where id = $1', [old]), undefined);
+  assert.ok(await ctx.db.one('select 1 from orgs where id = $1', [id]), 'claimed sandbox kept until it expires');
 });
