@@ -391,7 +391,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .tour-steps li.now > span { background: var(--brand); color: #fff; border-color: var(--brand); }
 .tour-steps li.done > span { background: var(--ok, #16a34a); color: #fff; border-color: transparent; }
 .tour-steps small { display: block; color: var(--muted); }
-.tour-banner { padding: 10px 16px; background: var(--accent-soft, #eef2ff); text-align: center; }
+.tour-banner { padding: 10px 16px; background: var(--brand-soft); color: var(--text); text-align: center; }
 .tour-split { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 16px; padding: 16px; align-items: start; }
 .tour-hint { text-align: center; }
 .tour-pane { display: flex; flex-direction: column; min-height: 640px; overflow: hidden; }
