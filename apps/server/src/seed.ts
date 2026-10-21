@@ -222,8 +222,8 @@ const sampleChats: { q: string; outcome: 'resolved' | 'open' | 'idle'; daysAgo: 
 const MIN = 60_000;
 
 /** Keep the demo alive: today's queue exists and moves on its own (patients arrive, consultations end). */
-export async function refreshDemoDay(): Promise<void> {
-  const org = await demoOrg();
+export async function refreshDemoDay(target?: Org): Promise<void> {
+  const org = target ?? (await demoOrg());
   if (!org) return;
   const off = org.settings.utcOffsetMin;
   const now = new Date();
@@ -353,6 +353,7 @@ export async function seedDemo(): Promise<void> {
   if (existing) {
     await ensureDemoKnowledge(existing.id);
     await ensureDemoClinicians(existing.id);
+    await ctx.db.query(`update orgs set settings = settings || '{"showAgentTrace": true}'::jsonb where id = $1`, [existing.id]);
     return refreshDemoDay();
   }
   console.log('[seed] creating demo workspace…');
@@ -365,8 +366,18 @@ export async function seedDemo(): Promise<void> {
     await ctx.db.query('insert into users (id, email, name, password_hash) values ($1, $2, $3, $4)', [id, config.demo.email, 'Demo Owner', await hashPassword(config.demo.password)]);
     user = { id };
   }
-  const userId = user.id;
-  const created = await createOrg(DEMO_ORG_NAME, userId, {
+  const org = await buildDemoHospital(DEMO_ORG_NAME, user.id, { sampleChats: true });
+  await ensureDemoClinicians(org.id);
+  await refreshDemoDay(org);
+  console.log(`[seed] demo workspace ready (${DEMO_ORG_NAME})`);
+}
+
+/**
+ * Builds the fictional Poonthalir Hospital (FAQs, doctors, patients, reports, past visits) in a
+ * new workspace owned by `ownerUserId`. Used for the shared demo and for private sandboxes.
+ */
+export async function buildDemoHospital(name: string, ownerUserId: string, opts: { sampleChats: boolean }): Promise<Org> {
+  const created = await createOrg(name, ownerUserId, {
     botName: 'Poonthalir Assistant',
     brandColor: '#0f766e',
     greeting: 'வணக்கம்! 🙏 Ask me about appointments, timings, fees, insurance or lab reports — in தமிழ், English or हिंदी. Say "book appointment" to see a doctor.',
@@ -374,6 +385,7 @@ export async function seedDemo(): Promise<void> {
     vertical: 'healthcare',
     emergencyNumber: '108',
     utcOffsetMin: 330,
+    showAgentTrace: true,
     voice: { provider: 'simulated' },
   });
   await ctx.db.query(`update orgs set plan = 'institution' where id = $1`, [created.id]);
@@ -476,7 +488,7 @@ export async function seedDemo(): Promise<void> {
   }
 
   // Sample conversations so the inbox and analytics are not empty.
-  for (const chat of sampleChats) {
+  for (const chat of opts.sampleChats ? sampleChats : []) {
     const conv = await createConversation(org, `v_demo_${uuid().slice(0, 8)}`, 'web', { name: chat.name });
     await addMessage(conv, 'customer', chat.q);
     const out = await runAi(org, conv, chat.q);
@@ -489,9 +501,9 @@ export async function seedDemo(): Promise<void> {
     );
     await ctx.db.query(`update messages set created_at = created_at - $2::interval where conversation_id = $1`, [conv.id, shift]);
   }
-  await ensureDemoClinicians(org.id);
-  await refreshDemoDay();
-  console.log(`[seed] demo workspace ready (${DEMO_ORG_NAME})`);
+  // Seeding raised report notifications for the owner; a new workspace starts with a clean bell.
+  await ctx.db.query('delete from notifications where org_id = $1', [org.id]);
+  return org;
 }
 
 export async function demoSiteKey(): Promise<string | null> {

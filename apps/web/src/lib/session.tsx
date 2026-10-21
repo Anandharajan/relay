@@ -10,6 +10,7 @@ export interface Me {
     plan: string;
     siteKey: string;
     whatsappConnected: boolean;
+    sandboxExpiresAt: string | null;
     settings: {
       botName: string;
       brandColor: string;

@@ -64,7 +64,27 @@ export function Landing() {
         <p className="lead">An AI front desk for clinics and institutions. Try it now: no sign-up.</p>
       </header>
 
-      <section className="section console-wrap">
+      <section className="section">
+        <div className="grid3 roles">
+          <Link to="/tour/patient" className="card role">
+            <span className="role-icon">🙋</span>
+            <strong>I’m a patient</strong>
+            <span className="small muted">Book, send a report and ask a question on chat. 90 seconds.</span>
+          </Link>
+          <Link to="/tour/doctor" className="card role">
+            <span className="role-icon">🩺</span>
+            <strong>I’m a doctor</strong>
+            <span className="small muted">Your own private hospital: watch the patient’s booking and report reach you, then approve.</span>
+          </Link>
+          <a href="#console" className="card role">
+            <span className="role-icon">🏥</span>
+            <strong>I run a clinic</strong>
+            <span className="small muted">Give the agents any task below, then start free with your own FAQ and doctors.</span>
+          </a>
+        </div>
+      </section>
+
+      <section className="section console-wrap" id="console">
         <AgentConsole mode="public" />
         <p className="small muted" style={{ textAlign: 'center' }}>Runs on a fictional hospital. Please don’t enter real patient details.</p>
       </section>

@@ -2,6 +2,7 @@ import { ctx } from '../ctx.ts';
 import { publish } from '../lib/events.ts';
 import type { Role } from '../http.ts';
 import { audit } from './orgs.ts';
+import { noticeReport } from './notify.ts';
 
 /**
  * Clinical routing: who is responsible for a patient, the queue of reports awaiting review,
@@ -43,16 +44,11 @@ export async function responsibleFor(orgId: string, clientId: string): Promise<R
   return row ? { staffId: row.id, staffName: row.name, userId: row.user_id } : null;
 }
 
-/** Send a personal notification to one staff login (shown in their dashboard). */
-export function notifyUser(userId: string, data: { title: string; body?: string; link?: string }) {
-  publish(`user:${userId}`, 'notify', { ...data, at: new Date().toISOString() });
-}
-
 /** Attach a processed report to the responsible doctor and tell them. */
 export async function routeRecord(orgId: string, record: { id: string; client_id: string; title: string }): Promise<Responsible | null> {
   const who = await responsibleFor(orgId, record.client_id);
   await ctx.db.query('update records set assigned_staff_id = $2 where id = $1', [record.id, who?.staffId ?? null]);
-  if (who?.userId) notifyUser(who.userId, { title: 'Report to review', body: record.title, link: '/app/approvals' });
+  await noticeReport(orgId, record.id, who?.userId ?? null);
   publish(`org:${orgId}`, 'reviews.updated', { recordId: record.id });
   return who;
 }
@@ -105,13 +101,13 @@ export async function canSignOff(orgId: string, user: { id: string; role: Role }
 export async function assignRecord(orgId: string, recordId: string, staffId: string | null, by: string): Promise<boolean> {
   const staff = staffId ? await ctx.db.one<{ id: string; user_id: string | null }>('select id, user_id from staff_members where id = $1 and org_id = $2', [staffId, orgId]) : null;
   if (staffId && !staff) return false;
-  const rows = await ctx.db.query<{ title: string }>(
-    'update records set assigned_staff_id = $3 where id = $1 and org_id = $2 and reviewed_at is null returning title',
+  const rows = await ctx.db.query<{ id: string }>(
+    'update records set assigned_staff_id = $3 where id = $1 and org_id = $2 and reviewed_at is null returning id',
     [recordId, orgId, staffId],
   );
   if (!rows.length) return false;
   await audit(orgId, by, 'record.assigned', recordId, { staffId });
-  if (staff?.user_id) notifyUser(staff.user_id, { title: 'Report to review', body: rows[0]!.title, link: '/app/approvals' });
+  if (staff?.user_id) await noticeReport(orgId, recordId, staff.user_id);
   publish(`org:${orgId}`, 'reviews.updated', { recordId });
   return true;
 }
@@ -129,10 +125,9 @@ export async function markReviewed(orgId: string, recordId: string, userId: stri
 
 /** Hand a patient's conversation to the booked doctor's login, if one is linked. */
 export async function assignConversationToStaff(orgId: string, conversationId: string, staffId: string): Promise<string | null> {
-  const s = await ctx.db.one<{ user_id: string | null; name: string }>('select user_id, name from staff_members where id = $1 and org_id = $2', [staffId, orgId]);
+  const s = await ctx.db.one<{ user_id: string | null }>('select user_id from staff_members where id = $1 and org_id = $2', [staffId, orgId]);
   if (!s?.user_id) return null;
   await ctx.db.query('update conversations set assigned_to = $3 where id = $1 and org_id = $2', [conversationId, orgId, s.user_id]);
   publish(`org:${orgId}`, 'conversation.updated', { id: conversationId });
-  notifyUser(s.user_id, { title: 'New patient booked with you', link: `/app/inbox/${conversationId}` });
   return s.user_id;
 }

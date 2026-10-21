@@ -1,3 +1,4 @@
+import { DoctorTour, PatientTour } from './tour/Tour';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Landing } from './pages/Landing';
 import { DemoStore } from './pages/DemoStore';
@@ -27,6 +28,8 @@ export function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/invite/:token" element={<Invite />} />
       <Route path="/try" element={<Try />} />
+      <Route path="/tour/patient" element={<PatientTour />} />
+      <Route path="/tour/doctor" element={<DoctorTour />} />
       <Route path="/preview" element={<Preview />} />
       <Route path="/v/:code" element={<Visit />} />
       <Route path="/checkin/:siteKey" element={<Checkin />} />

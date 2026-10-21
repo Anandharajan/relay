@@ -1,3 +1,4 @@
+import { notifications } from './routes/notifications.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Hono } from 'hono';
@@ -60,6 +61,7 @@ export function buildApp() {
   app.route('/api/billing', billing);
   app.route('/api/demo', demoControl);
   app.route('/api/visits', visits);
+  app.route('/api/notifications', notifications);
   app.route('/api/admin', admin);
   app.route('/api/runs', runsApi);
   app.route('/api/public/runs', publicRuns);

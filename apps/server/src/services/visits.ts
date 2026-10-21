@@ -160,6 +160,10 @@ export async function bookAppointment(org: Org, input: { clientId: string; staff
   await scheduleForAppointment(org, appt, staff);
   const client = await ctx.db.one<{ conversation_id: string | null }>('select conversation_id from clients where id = $1', [input.clientId]);
   if (client?.conversation_id) await assignConversationToStaff(org.id, client.conversation_id, staff.id);
+  if (staff.user_id) {
+    const { noticeBooking } = await import('./notify.ts');
+    await noticeBooking(org, input.clientId, staff.user_id, client?.conversation_id ?? null);
+  }
   publish(`org:${org.id}`, 'visits.updated', { appointmentId: id });
   return appt;
 }

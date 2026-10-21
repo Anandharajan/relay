@@ -30,6 +30,19 @@ export interface RunInput {
   complexity?: 1 | 2 | 3;
 }
 
+/**
+ * Live agent activity: every agent decision is pushed to the workspace dashboard, and — for
+ * workspaces with `showAgentTrace` (demo and sandboxes) — to the patient's own chat as well.
+ */
+async function shareActivity(r: RunInput) {
+  if (!r.orgId) return;
+  const activity = { agent: r.agent, status: r.status, outcome: r.outcome ?? '', steps: r.steps ?? [], latencyMs: Math.round(r.latencyMs ?? 0), conversationId: r.conversationId ?? null, clientId: r.clientId ?? null, at: new Date().toISOString() };
+  publish(`org:${r.orgId}`, 'agent.activity', activity);
+  if (!r.conversationId) return;
+  const row = await ctx.db.one<{ show: boolean | null }>(`select (settings->>'showAgentTrace')::boolean as show from orgs where id = $1`, [r.orgId]);
+  if (row?.show) publish(`conv:${r.conversationId}`, 'agents', activity);
+}
+
 export async function recordRun(r: RunInput) {
   try {
     await ctx.db.query(
@@ -41,6 +54,7 @@ export async function recordRun(r: RunInput) {
       ],
     );
     if (r.status === 'failed') publish('platform', 'agent.failed', { agent: r.agent, tags: r.tags });
+    await shareActivity(r);
   } catch (e) {
     console.error('[agents] could not record run', (e as Error).message);
   }

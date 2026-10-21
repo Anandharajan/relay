@@ -8,7 +8,7 @@ import type { Org } from '../services/orgs.ts';
 import { dayBounds, formatWhen, freeSlots, listStaff, queueFor } from '../services/visits.ts';
 import { extractDate, extractMedicines, extractObservations, flagFor, TESTS } from '../services/records.ts';
 import { answer } from './answer.ts';
-import { bookingIntent, changeIntent, matchStaff } from './booking.ts';
+import { bookingIntent, changeIntent, matchStaff, preferredStart } from './booking.ts';
 import { asksMedicalAdvice, isEmergency, maskHealth } from './safety.ts';
 import { t } from './i18n.ts';
 import { executeAction, extractParams, loadActions, matchActionByKeywords, renderTemplate } from './actions.ts';
@@ -262,7 +262,7 @@ async function runMessage(org: Org, r: PipelineRun, text: string) {
       const matched = matchStaff(text, intent.staff);
       const general = intent.staff.filter((s) => /general|family|physician/i.test(s.specialty ?? ''));
       const who = (matched.length ? matched : general.length ? general : intent.staff).slice(0, 2);
-      const lists = await Promise.all(who.map(async (s) => ({ s, slots: await freeSlots(org, s, 3) })));
+      const lists = await Promise.all(who.map(async (s) => ({ s, slots: await freeSlots(org, s, 3, preferredStart(text, org)) })));
       const total = lists.reduce((n, x) => n + x.slots.length, 0);
       return { result: `${total} free slot${total === 1 ? '' : 's'} with ${who.map((w) => w.name).join(', ')}`, value: lists };
     }),

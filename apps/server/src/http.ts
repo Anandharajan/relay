@@ -72,7 +72,7 @@ export const requireOrg: MiddlewareHandler<AppEnv> = async (c, next) => {
 };
 
 /** The few non-GET calls a read-only demo guest may make (they change nothing that other visitors see). */
-const VIEWER_WRITES = ['/api/knowledge/ask', '/api/inbox/presence', '/api/me/switch-org', '/api/runs'];
+const VIEWER_WRITES = ['/api/knowledge/ask', '/api/inbox/presence', '/api/me/switch-org', '/api/runs', '/api/notifications/read'];
 
 /** Admin-only data a demo guest must not read even though it is GET. */
 const VIEWER_HIDDEN = ['/api/workspace/team', '/api/workspace/audit', '/api/workspace/privacy', '/api/workspace/model', '/api/billing'];

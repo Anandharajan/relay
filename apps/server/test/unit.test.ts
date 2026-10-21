@@ -156,3 +156,13 @@ test('persona: safety catches colloquial clinical and emergency messages', () =>
   for (const s of ['BP மாத்திரை நிறுத்தலாமா', 'my hba1c is 9 is it bad?', 'baby has 103 fever what to do']) assert.ok(_safety.asksMedicalAdvice(s) || _safety.isEmergency(s), s);
   assert.ok(!_safety.isEmergency('what are OPD timings'));
 });
+
+test('persona: "tomorrow" in any language starts slots from tomorrow', async () => {
+  const { preferredStart } = await import('../src/engine/booking.ts');
+  const org = { settings: { utcOffsetMin: 330 } } as any;
+  const now = new Date('2026-10-21T10:00:00Z'); // 15:30 IST
+  const tomorrow = new Date('2026-10-21T18:30:00Z'); // 00:00 IST on 22 Oct
+  for (const s of ['Book Dr. Narmadha tomorrow', 'naalaiku appointment', 'நாளை டாக்டர் பார்க்கணும்', 'kal appointment chahiye']) assert.equal(preferredStart(s, org, now).toISOString(), tomorrow.toISOString(), s);
+  assert.equal(preferredStart('book an appointment', org, now).toISOString(), now.toISOString());
+  assert.equal(preferredStart('day after tomorrow please', org, now).toISOString(), new Date('2026-10-22T18:30:00Z').toISOString());
+});

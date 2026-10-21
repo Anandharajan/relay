@@ -4,6 +4,7 @@ import { useSession } from '../lib/session';
 import { terms } from '../lib/terms';
 import { AgentConsole } from '../components/AgentConsole';
 import { useReviewCount } from '../components/ReviewQueue';
+import { AgentActivity } from '../components/AgentActivity';
 
 /** Home = the agent console, plus four numbers and what is left to set up. */
 export function Home() {
@@ -47,6 +48,8 @@ export function Home() {
         <Link to="/app/visits" className="card stat"><div className="label">{T.visits}</div><div className="value">→</div></Link>
         <Link to="/app/analytics" className="card stat"><div className="label">Solved by AI (30 d)</div><div className="value">{s ? `${Math.round((stats.data.resolutionRate ?? 0) * 100)}%` : '—'}</div></Link>
       </div>
+
+      <AgentActivity />
 
       {todo.length > 0 && (
         <div className="row wrap small" style={{ gap: 8 }}>

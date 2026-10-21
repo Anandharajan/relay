@@ -143,8 +143,19 @@ export async function visitFlow(org: Org, text: string, detected: string, meta: 
   return null;
 }
 
+/** "tomorrow" / "day after tomorrow" in English, Tamil and Hindi (native or romanised) → when to start offering slots. */
+export function preferredStart(text: string, org: Org, now = new Date()): Date {
+  const days = /day after tomorrow|நாளை ?மறுநாள்|naalai ?marunaal|परसों|\bparso\b/i.test(text)
+    ? 2
+    : /\btomm?orr?ow\b|\btmrw?\b|நாளை|naalaik?k?u|\bnaalai\b|कल|\bkal\b/i.test(text)
+      ? 1
+      : 0;
+  if (!days) return now;
+  return dayBounds(new Date(now.getTime() + days * 86_400_000), org.settings.utcOffsetMin).start;
+}
+
 async function offerSlots(org: Org, s: Staff, lang: string, reason?: string): Promise<FlowResult> {
-  const slots = await freeSlots(org, s, 6);
+  const slots = await freeSlots(org, s, 6, preferredStart(reason ?? '', org));
   if (!slots.length) return { text: t('noSlots', lang), metaPatch: { booking: null }, handoff: 'no_slots' };
   const list = slots.map((d, i) => `${i + 1}. ${formatWhen(d, org, lang)}`).join('\n');
   return { text: t('chooseSlot', lang, { staff: s.name, list }), metaPatch: { booking: { step: 'slot', staffId: s.id, slots: slots.map((d) => d.toISOString()), reason, lang } satisfies BookingState } };

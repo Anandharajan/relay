@@ -317,6 +317,71 @@ test('review routing: demo doctors are linked, admins reassign, clinical drafts 
   }
 });
 
+test('doctor sandbox: private hospital, live agent trace and descriptive notifications', async () => {
+  const saved = cookie;
+  try {
+    const sb = await api('POST', '/api/auth/sandbox', {});
+    assert.equal(sb.status, 200, JSON.stringify(sb.data));
+    const me = (await api('GET', '/api/me')).data;
+    assert.match(me.org.name, /sandbox/);
+    assert.ok(me.org.sandboxExpiresAt);
+    assert.equal(me.user.name, 'Dr. Narmadha Vasu');
+    // The visitor is the sandbox's doctor: her calendar is linked to this login.
+    const narmadha = (await api('GET', '/api/visits/staff')).data.find((s: any) => s.name === 'Dr. Narmadha Vasu');
+    assert.equal(narmadha.user_id, me.user.id);
+
+    // Patient side, over the public widget API of the sandbox.
+    const w = await fetch(`${base}/widget/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ siteKey: sb.data.siteKey }) }).then((r) => r.json());
+    const auth = { 'content-type': 'application/json', authorization: `Bearer ${w.token}` };
+    let conversationId: string | null = null;
+    const say = async (content: string) => {
+      const r = await fetch(`${base}/widget/messages`, { method: 'POST', headers: auth, body: JSON.stringify({ content, conversationId }) }).then((x) => x.json());
+      conversationId = r.conversationId;
+      return waitFor(async () => {
+        const c = await fetch(`${base}/widget/conversation`, { headers: auth }).then((x) => x.json());
+        const last = c.messages[c.messages.length - 1];
+        return last && last.role !== 'customer' && c.messages.length && last;
+      }, `reply to ${content}`);
+    };
+    assert.match((await say('Book Dr. Narmadha tomorrow')).content, /Narmadha/);
+    await say('1');
+    assert.match((await say('Priya Raman')).content, /✅/);
+    const booking = await waitFor(async () => (await api('GET', '/api/notifications')).data.items.find((n: any) => n.kind === 'booking'), 'booking notification');
+    assert.match(booking.title, /Priya Raman/);
+    assert.ok(booking.facts.some((f: any) => f.label === 'Visit'));
+
+    const form = new FormData();
+    form.append('file', new File(['Haemoglobin 9.0 g/dL 11.0 - 15.0\nTSH 3.1 uIU/mL 0.4 - 4.5'], 'antenatal.txt', { type: 'text/plain' }));
+    form.append('conversationId', conversationId!);
+    const up = await fetch(`${base}/widget/records`, { method: 'POST', headers: { authorization: `Bearer ${w.token}` }, body: form });
+    assert.equal(up.status, 200);
+    const report = await waitFor(async () => (await api('GET', '/api/notifications')).data.items.find((n: any) => n.kind === 'report'), 'report notification');
+    assert.match(report.facts.find((f: any) => f.label === 'Results').value, /Haemoglobin 9 g\/dL \(low\)/);
+    assert.ok(report.facts.find((f: any) => f.label === 'Agents did'));
+    assert.ok((await api('GET', '/api/visits/reviews?mine=1')).data.length >= 1);
+
+    await say('Can I stop my BP tablet?');
+    const q = await waitFor(async () => (await api('GET', '/api/notifications')).data.items.find((n: any) => n.kind === 'clinical_question'), 'clinical question notification');
+    assert.match(q.body, /BP tablet/);
+    assert.equal(q.link, `/app/inbox/${conversationId}`);
+
+    const list = (await api('GET', '/api/notifications')).data;
+    assert.ok(list.unread >= 3);
+    assert.equal((await api('POST', '/api/notifications/read', {})).status, 200);
+    assert.equal((await api('GET', '/api/notifications')).data.unread, 0);
+
+    // Expired sandboxes are removed with their guest login.
+    const { ctx } = await import('../src/ctx.ts');
+    const { purgeSandboxes } = await import('../src/services/sandbox.ts');
+    await ctx.db.query(`update orgs set expires_at = now() - interval '1 minute' where id = $1`, [me.org.id]);
+    assert.ok((await purgeSandboxes()) >= 1);
+    assert.equal(await ctx.db.one('select 1 from orgs where id = $1', [me.org.id]), undefined);
+    assert.equal(await ctx.db.one('select 1 from users where id = $1', [me.user.id]), undefined);
+  } finally {
+    cookie = saved;
+  }
+});
+
 test('telecalling add-on: simulated reminder call and keypad answer', async () => {
   const appts = (await api('GET', '/api/visits/appointments')).data.filter((a: any) => a.status === 'booked');
   if (!appts.length) return;

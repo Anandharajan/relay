@@ -221,10 +221,11 @@ export async function processRecord(payload: { recordId: string }) {
   const org = (await import('./orgs.ts')).getOrg;
   const o = (await org(rec.org_id))!;
   const t0 = Date.now();
+  const convId = (await ctx.db.one<{ conversation_id: string | null }>('select conversation_id from clients where id = $1', [rec.client_id]))?.conversation_id ?? null;
   let text = rec.text;
   if (!text && rec.blob_key) text = await fileText(rec.blob_key, rec.title);
   if (!text?.trim()) {
-    await recordRun({ orgId: rec.org_id, agent: 'intake', trigger: `upload:${rec.uploaded_by}`, clientId: rec.client_id, status: 'handoff', outcome: 'needs manual review', tags: ['intake.unreadable_file'], steps: [{ name: 'extract_text', detail: 'no text layer (image/scan)' }], latencyMs: Date.now() - t0 });
+    await recordRun({ orgId: rec.org_id, agent: 'intake', trigger: `upload:${rec.uploaded_by}`, clientId: rec.client_id, conversationId: convId, status: 'handoff', outcome: 'needs manual review', tags: ['intake.unreadable_file'], steps: [{ name: 'extract_text', detail: 'no text layer (image/scan)' }], latencyMs: Date.now() - t0 });
     await ctx.db.query(`update records set status = 'needs_review', summary = $2::jsonb where id = $1`, [rec.id, { note: 'Image or scanned file: enter key values manually, or enable model-assisted extraction.' }]);
     await syncReportContext(rec, 'needs_review');
     await routeRecord(rec.org_id, rec);
@@ -250,7 +251,7 @@ export async function processRecord(payload: { recordId: string }) {
     rec.id, kind, text.slice(0, 100_000), observedOn, { observations: obs.length, medicines: meds },
   ]);
   await recordRun({
-    orgId: rec.org_id, agent: 'intake', trigger: `upload:${rec.uploaded_by}`, clientId: rec.client_id, status: obs.length || meds.length ? 'ok' : 'handoff',
+    orgId: rec.org_id, agent: 'intake', trigger: `upload:${rec.uploaded_by}`, clientId: rec.client_id, conversationId: convId, status: obs.length || meds.length ? 'ok' : 'handoff',
     outcome: `${obs.length} results, ${meds.length} medicines (${kind})`, tags: obs.length || meds.length ? [] : ['intake.nothing_extracted'], complexity: 2,
     steps: [{ name: 'extract_text', detail: `${text.length} chars` }, { name: 'parse_results', detail: String(obs.length) }, { name: 'parse_medicines', detail: String(meds.length) }, { name: 'classify', detail: kind }],
     latencyMs: Date.now() - t0,
@@ -258,7 +259,7 @@ export async function processRecord(payload: { recordId: string }) {
   await matchInvestigations(o, rec.client_id, rec.id, obs.map((x) => x.test), observedOn);
   const t1 = Date.now();
   const created = await runFindings(o, rec.client_id);
-  await recordRun({ orgId: rec.org_id, agent: 'findings', trigger: 'record_processed', clientId: rec.client_id, status: 'ok', outcome: `${created} new findings`, complexity: 3, steps: [{ name: 'reference_ranges' }, { name: 'trends' }, { name: 'overdue_monitoring' }, { name: 'draft_patient_message', detail: 'held for doctor approval' }], latencyMs: Date.now() - t1 });
+  await recordRun({ orgId: rec.org_id, agent: 'findings', trigger: 'record_processed', clientId: rec.client_id, conversationId: convId, status: 'ok', outcome: `${created} new findings`, complexity: 3, steps: [{ name: 'reference_ranges' }, { name: 'trends' }, { name: 'overdue_monitoring' }, { name: 'draft_patient_message', detail: 'held for doctor approval' }], latencyMs: Date.now() - t1 });
   if (rec.uploaded_by === 'patient') {
     const client = await ctx.db.one<Client>('select * from clients where id = $1', [rec.client_id]);
     const ack =

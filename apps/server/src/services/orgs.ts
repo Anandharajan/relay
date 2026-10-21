@@ -4,6 +4,8 @@ import { decrypt, token, uuid } from '../lib/crypto.ts';
 import { createLlm, providerCatalog, type Llm } from '../adapters/llm.ts';
 
 export interface OrgSettings {
+  /** Show each agent's work inside the patient's chat (demo and sandboxes only). */
+  showAgentTrace?: boolean;
   botName: string;
   brandColor: string;
   greeting: string;
@@ -50,6 +52,8 @@ export interface Org {
   settings: OrgSettings;
   secrets: Record<string, string>;
   created_at: Date;
+  /** Set only for disposable demo sandboxes. */
+  expires_at: Date | null;
 }
 
 export async function getOrg(id: string): Promise<Org | undefined> {

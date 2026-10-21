@@ -1,3 +1,4 @@
+import { createSandbox, SANDBOX_DOCTOR } from '../services/sandbox.ts';
 import { Hono } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
 import { z } from 'zod';
@@ -88,6 +89,23 @@ auth.post('/demo', async (c) => {
   return c.json({ ok: true });
 });
 
+/** A private copy of the demo hospital, signed in as its doctor. Nothing is shared with other visitors. */
+auth.post('/sandbox', async (c) => {
+  if (c.req.header('x-relay-csrf') !== '1') fail(403, 'Missing CSRF header');
+  if (!config.demo.seed) fail(404, 'The demo is not enabled on this server');
+  const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
+  if (!rateLimit(`sandbox:${ip}`, 5, 60 * 60_000).ok) fail(429, 'You have opened several sandboxes already. Please reuse your current tab or try later.');
+  let sb;
+  try {
+    sb = await createSandbox();
+  } catch (e) {
+    fail(429, (e as Error).message);
+  }
+  await startSession(c, sb.userId);
+  setCookie(c, ORG_COOKIE, sb.org.id, { path: '/', sameSite: 'Lax', secure });
+  return c.json({ siteKey: sb.org.site_key, doctor: SANDBOX_DOCTOR, expiresAt: sb.expiresAt.toISOString() });
+});
+
 auth.post('/logout', (c) => {
   deleteCookie(c, SESSION_COOKIE, { path: '/' });
   return c.json({ ok: true });
@@ -123,7 +141,7 @@ me.get('/', async (c) => {
   return c.json({
     user,
     role: c.get('role'),
-    org: { id: org.id, name: org.name, plan: org.plan, siteKey: org.site_key, settings: org.settings, whatsappConnected: Boolean(org.secrets.whatsappToken) },
+    org: { id: org.id, name: org.name, plan: org.plan, siteKey: org.site_key, settings: org.settings, whatsappConnected: Boolean(org.secrets.whatsappToken), sandboxExpiresAt: org.expires_at ? new Date(org.expires_at).toISOString() : null },
     orgs,
     server: { mode: config.mode, publicUrl: config.publicUrl, billing: Boolean(config.razorpay.keyId) },
     isPlatformAdmin: config.platformAdmins.includes(user.email.toLowerCase()),

@@ -211,6 +211,8 @@ export async function runAi(org: Org, conv: Conversation, content: string): Prom
     await setStatus(conv, 'escalated');
     publish(`org:${org.id}`, 'attention', { conversationId: conv.id, reason: out.reason, urgent: out.reason === 'emergency' || out.reason === 'followup_worse' });
     if (out.reason === 'emergency' || out.reason === 'followup_worse') await patchMeta(conv, { priority: 'urgent' });
+    const { noticeEscalation } = await import('./notify.ts');
+    await noticeEscalation(org, conv.id, out.reason ?? '', content).catch((e) => console.error('[notify] escalation', (e as Error).message));
   } else if (out.kind === 'action_pending' && out.action) {
     const runId = uuid();
     await ctx.db.query(`insert into action_runs (id, org_id, action_id, conversation_id, params, status) values ($1, $2, $3, $4, $5::jsonb, 'pending_approval')`, [

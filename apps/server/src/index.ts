@@ -9,6 +9,7 @@ import { drainJobs, registerJob, startJobs, enqueueOnce } from './jobs/runner.ts
 import { ingestSource } from './jobs/ingest.ts';
 import { runSimulation } from './jobs/simulate.ts';
 import { autoResolveIdle, resyncStaleSources, retentionPurge } from './jobs/maintenance.ts';
+import { purgeSandboxes } from './services/sandbox.ts';
 import { seedDemo } from './seed.ts';
 import { visitsTick } from './jobs/visits.ts';
 import { processRecord } from './services/records.ts';
@@ -32,6 +33,9 @@ registerJob('simulate', runSimulation);
 registerJob('auto_resolve', autoResolveIdle);
 registerJob('retention', retentionPurge);
 registerJob('resync', resyncStaleSources);
+registerJob('sandbox_purge', async () => {
+  await purgeSandboxes();
+});
 registerJob('visits_tick', visitsTick);
 registerJob('record_process', processRecord);
 registerJob('voice_call', async (p) => {
@@ -43,6 +47,7 @@ if (config.role !== 'web') {
     { everyMs: 60_000, run: () => enqueueOnce('auto_resolve') },
     { everyMs: 6 * 3600_000, run: () => enqueueOnce('retention') },
     { everyMs: 3600_000, run: () => enqueueOnce('resync') },
+    { everyMs: 5 * 60_000, run: () => enqueueOnce('sandbox_purge') },
     { everyMs: 60_000, run: () => enqueueOnce('visits_tick') },
   ]);
 }
