@@ -138,7 +138,7 @@ export function Layout() {
       <main className="main">
         <div className="topbar"><NotificationBell /></div>
         {me.role === 'viewer' && (
-          <div className="card pad row wrap" style={{ gap: 10, marginBottom: 16, background: 'var(--accent-soft, #eef2ff)' }}>
+          <div className="card pad row wrap" style={{ gap: 10, marginBottom: 16, background: 'var(--brand-soft)', color: 'var(--text)' }}>
             <span className="grow small">
               <strong>Demo workspace</strong> · read-only, shared with other visitors.
             </span>
