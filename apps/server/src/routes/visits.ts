@@ -12,7 +12,7 @@ import {
 } from '../services/visits.ts';
 import { brief, flagFor, runFindings, TESTS } from '../services/records.ts';
 import { handleDigit, placeCall } from '../services/calls.ts';
-import { awaitingReview, canSignOff, markReviewed, reviewCount } from '../services/review.ts';
+import { assignRecord, awaitingReview, canSignOff, markReviewed, reviewCount } from '../services/review.ts';
 import { enqueue } from '../jobs/runner.ts';
 
 /** Dashboard API for the visits layer and the healthcare pack. */
@@ -267,7 +267,13 @@ visits.post('/outbox/:id/approve', async (c) => {
 });
 
 visits.post('/outbox/:id/discard', async (c) => {
-  await ctx.db.query(`update outbox set status = 'cancelled' where id = $1 and org_id = $2 and status in ('pending_approval', 'scheduled')`, [c.req.param('id'), c.get('org').id]);
+  const org = c.get('org');
+  const row = await ctx.db.one<{ client_id: string; status: string }>(`select client_id, status from outbox where id = $1 and org_id = $2 and status in ('pending_approval', 'scheduled')`, [c.req.param('id'), org.id]);
+  if (!row) fail(404, 'Nothing to discard');
+  // Discarding a clinical draft is a clinical decision too; scheduled reminders stay open to the front desk.
+  if (row.status === 'pending_approval') await requireSignOff(c, row.client_id);
+  await ctx.db.query(`update outbox set status = 'cancelled' where id = $1 and org_id = $2`, [c.req.param('id'), org.id]);
+  await audit(org.id, c.get('user').id, 'message.discarded', c.req.param('id'), {});
   return c.json({ ok: true });
 });
 
@@ -295,6 +301,12 @@ visits.get('/reviews/count', async (c) => {
   const org = c.get('org');
   const [all, mine] = await Promise.all([reviewCount(org.id), reviewCount(org.id, c.get('user').id)]);
   return c.json({ all, mine });
+});
+
+visits.post('/records/:id/assign', requireRole('admin'), async (c) => {
+  const b = await body(c, z.object({ staffId: z.string().uuid().nullable() }));
+  if (!(await assignRecord(c.get('org').id, c.req.param('id'), b.staffId, c.get('user').id))) fail(404, 'Report not found, already reviewed, or unknown doctor');
+  return c.json({ ok: true });
 });
 
 visits.post('/records/:id/reviewed', async (c) => {

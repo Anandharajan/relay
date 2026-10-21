@@ -197,7 +197,7 @@ const patients: { name: string; phone: string; lang: string; birthYear: number; 
   },
   { name: 'Arun Kumar (age 7)', phone: '9000000106', lang: 'ta', birthYear: 2019, sex: 'M', doctor: 3, reason: 'Fever for 2 days', records: [] },
   { name: 'Joseph Xavier', phone: '9000000107', lang: 'en', birthYear: 1955, sex: 'M', doctor: 4, reason: 'Knee pain', records: [] },
-  { name: 'Ananya Krishnan', phone: '9000000108', lang: 'en', birthYear: 1997, sex: 'F', doctor: 5, reason: 'Antenatal check-up', records: [] },
+  { name: 'Ananya Krishnan', phone: '9000000108', lang: 'en', birthYear: 1997, sex: 'F', doctor: 5, reason: 'Antenatal check-up', records: [{ title: 'Antenatal blood tests', daysAgo: 1, text: 'SYNTHETIC REPORT\nDate: {date}\nHaemoglobin 10.4 g/dL 11.0 - 15.0\nFasting Blood Sugar 88 mg/dL 70 - 100\nTSH 2.2 uIU/mL 0.4 - 4.5\n' }] },
   { name: 'Mohan Das', phone: '9000000113', lang: 'ta', birthYear: 1966, sex: 'M', doctor: 6, reason: 'Pre-anaesthetic check-up before knee surgery', records: [] },
   { name: 'Karthik Raja', phone: '9000000109', lang: 'ta', birthYear: 1986, sex: 'M', doctor: 0, reason: 'Cough and cold', records: [] },
   { name: 'Selvi Murthy', phone: '9000000110', lang: 'ta', birthYear: 1972, sex: 'F', doctor: 0, reason: 'Headache', records: [] },
@@ -327,12 +327,32 @@ async function ensureDemoKnowledge(orgId: string): Promise<void> {
   }
 }
 
+/** Doctors with their own (non-sign-in) logins, so the demo shows routing and "assigned to" labels. */
+const demoClinicians = [
+  { staff: 'Dr. Narmadha Vasu', email: 'narmadha.vasu@poonthalir.demo' },
+  { staff: 'Dr. Kannan', email: 'kannan@poonthalir.demo' },
+];
+
+async function ensureDemoClinicians(orgId: string): Promise<void> {
+  for (const d of demoClinicians) {
+    let user = await ctx.db.one<{ id: string }>('select id from users where email = $1', [d.email]);
+    if (!user) {
+      user = { id: uuid() };
+      // A random password nobody knows: these accounts exist for routing, not for signing in.
+      await ctx.db.query('insert into users (id, email, name, password_hash) values ($1, $2, $3, $4)', [user.id, d.email, d.staff, await hashPassword(token(24))]);
+    }
+    await ctx.db.query(`insert into members (org_id, user_id, role) values ($1, $2, 'agent') on conflict do nothing`, [orgId, user.id]);
+    await ctx.db.query('update staff_members set user_id = $3 where org_id = $1 and name = $2 and user_id is null', [orgId, d.staff, user.id]);
+  }
+}
+
 export async function seedDemo(): Promise<void> {
   if (!config.demo.seed) return;
   let user = await ctx.db.one<{ id: string }>('select id from users where email = $1', [config.demo.email]);
   const existing = user ? await demoOrg() : undefined;
   if (existing) {
     await ensureDemoKnowledge(existing.id);
+    await ensureDemoClinicians(existing.id);
     return refreshDemoDay();
   }
   console.log('[seed] creating demo workspace…');
@@ -422,6 +442,7 @@ export async function seedDemo(): Promise<void> {
       ]);
       await processRecord({ recordId: id });
     }
+    await ctx.db.query('update records set assigned_staff_id = $2 where client_id = $1', [client.id, staffIds[p.doctor] ?? null]);
   }
   // Past visits with ratings (synthetic) so staff ratings and visit history are not empty.
   const roster = await ctx.db.query<{ id: string; avg_minutes: number }>('select id, avg_minutes from staff_members where org_id = $1 order by name', [org.id]);
@@ -468,7 +489,7 @@ export async function seedDemo(): Promise<void> {
     );
     await ctx.db.query(`update messages set created_at = created_at - $2::interval where conversation_id = $1`, [conv.id, shift]);
   }
-  void staffIds;
+  await ensureDemoClinicians(org.id);
   await refreshDemoDay();
   console.log(`[seed] demo workspace ready (${DEMO_ORG_NAME})`);
 }

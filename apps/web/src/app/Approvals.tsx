@@ -46,7 +46,7 @@ export function Approvals() {
           ))}
         </div>
       )}
-      <ReviewQueue readOnly={readOnly} />
+      <ReviewQueue readOnly={readOnly} canAssign={me?.role === 'owner' || me?.role === 'admin'} />
       <div className="grid2">
         <div className="card pad stack">
           <h3>Messages waiting for approval ({messages.length})</h3>

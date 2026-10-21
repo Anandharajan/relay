@@ -83,7 +83,7 @@ This is the doctor-in-the-loop rollout. Nothing goes to patients that the clinic
 |---|---|
 | **Settings → Answer mode = Draft** | Every AI reply becomes a draft in the Inbox. Staff edit and send, or discard. Edits become knowledge automatically. |
 | **Inbox** | See the AI's suggested reply, its sources and confidence before it goes out. |
-| **Approvals** | Reports awaiting review (filter to *Assigned to me*), AI findings, and the patient message drafted for them. Mark reviewed; Edit → Approve and send, or Discard. |
+| **Approvals** | Reports awaiting review (filter to *Assigned to me*), AI findings, and the patient message drafted for them. Admins can reassign a report to another doctor. Mark reviewed; Edit → Approve and send, or Discard (approving or discarding a clinical message needs an admin or the patient's linked doctor). |
 | **Knowledge → Ask your AI** | Type any patient question and see exactly what would be answered, with sources. |
 | **Simulations** | Paste 30–50 real questions from the clinic's WhatsApp history, each with the expected answer (`question => expected words`). Aim for a 90%+ pass rate before leaving Draft mode. |
 | **Safety drill** | Send emergency and medication questions in Tamil and English ("நெஞ்சு வலி", "can I stop my BP tablet?"). They must always be escalated, never answered. |

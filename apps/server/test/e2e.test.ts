@@ -287,7 +287,33 @@ test('review routing: reports reach the booked doctor\'s queue until signed off'
     assert.equal((await api('POST', `/api/visits/records/${item.id}/reviewed`, {})).status, 409);
     assert.ok(!(await api('GET', '/api/visits/reviews')).data.some((r: any) => r.id === item.id));
   } finally {
-    await api('PATCH', `/api/visits/staff/${staff.id}`, { userId: null });
+    await api('PATCH', `/api/visits/staff/${staff.id}`, { userId: staff.user_id ?? null });
+  }
+});
+
+test('review routing: demo doctors are linked, admins reassign, clinical drafts need sign-off to discard', async () => {
+  const staff = (await api('GET', '/api/visits/staff')).data;
+  const narmadha = staff.find((s: any) => s.name === 'Dr. Narmadha Vasu');
+  assert.ok(narmadha.user_id, 'demo doctor linked to a login');
+  const queue = (await api('GET', '/api/visits/reviews')).data;
+  const seeded = queue.filter((r: any) => r.client_name === 'Ananya Krishnan');
+  assert.ok(seeded.length && seeded.every((r: any) => r.staff_name === 'Dr. Narmadha Vasu'), 'seeded reports are assigned to their doctor');
+  const item = queue[0];
+  assert.equal((await api('POST', `/api/visits/records/${item.id}/assign`, { staffId: narmadha.id })).status, 200);
+  assert.equal((await api('GET', '/api/visits/reviews')).data.find((r: any) => r.id === item.id).staff_name, 'Dr. Narmadha Vasu');
+  assert.equal((await api('POST', `/api/visits/records/${item.id}/assign`, { staffId: '00000000-0000-4000-8000-000000000000' })).status, 404);
+  const draft = (await api('GET', '/api/visits/approvals')).data.messages[0];
+  if (draft) {
+    const me = (await api('GET', '/api/me')).data;
+    const { ctx } = await import('../src/ctx.ts');
+    // An ordinary staff login that is not this patient's doctor cannot discard a clinical draft.
+    await ctx.db.query("update members set role = 'agent' where org_id = $1 and user_id = $2", [me.org.id, me.user.id]);
+    try {
+      assert.equal((await api('POST', `/api/visits/outbox/${draft.id}/discard`, {})).status, 403);
+      assert.equal((await api('POST', `/api/visits/records/${item.id}/assign`, { staffId: null })).status, 403);
+    } finally {
+      await ctx.db.query("update members set role = 'owner' where org_id = $1 and user_id = $2", [me.org.id, me.user.id]);
+    }
   }
 });
 

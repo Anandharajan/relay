@@ -101,6 +101,21 @@ export async function canSignOff(orgId: string, user: { id: string; role: Role }
   return Boolean(row);
 }
 
+/** Admins can hand a report to another doctor (or clear it); the new doctor is notified. */
+export async function assignRecord(orgId: string, recordId: string, staffId: string | null, by: string): Promise<boolean> {
+  const staff = staffId ? await ctx.db.one<{ id: string; user_id: string | null }>('select id, user_id from staff_members where id = $1 and org_id = $2', [staffId, orgId]) : null;
+  if (staffId && !staff) return false;
+  const rows = await ctx.db.query<{ title: string }>(
+    'update records set assigned_staff_id = $3 where id = $1 and org_id = $2 and reviewed_at is null returning title',
+    [recordId, orgId, staffId],
+  );
+  if (!rows.length) return false;
+  await audit(orgId, by, 'record.assigned', recordId, { staffId });
+  if (staff?.user_id) notifyUser(staff.user_id, { title: 'Report to review', body: rows[0]!.title, link: '/app/approvals' });
+  publish(`org:${orgId}`, 'reviews.updated', { recordId });
+  return true;
+}
+
 export async function markReviewed(orgId: string, recordId: string, userId: string): Promise<boolean> {
   const rows = await ctx.db.query<{ id: string }>(
     `update records set reviewed_by = $3, reviewed_at = now() where id = $1 and org_id = $2 and reviewed_at is null returning id`,
