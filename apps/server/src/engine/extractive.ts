@@ -6,11 +6,11 @@ function stem(t: string): string {
   return t.replace(/(ing|edly|ed|es|s|ly)$/, '');
 }
 
-function stems(text: string): Set<string> {
+export function stems(text: string): Set<string> {
   return new Set(contentTokens(text).map(stem));
 }
 
-function overlap(q: Set<string>, s: Set<string>): number {
+export function overlap(q: Set<string>, s: Set<string>): number {
   if (!q.size) return 0;
   let hit = 0;
   for (const t of q) {

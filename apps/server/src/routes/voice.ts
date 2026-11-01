@@ -31,7 +31,7 @@ import {
   createPhrase,
   phraseMatches,
 } from "../services/voice-consent.ts";
-import { audit } from "../services/orgs.ts";
+import { audit, llmForOrg } from "../services/orgs.ts";
 import { rateLimit } from "../lib/ratelimit.ts";
 export const voiceApi = new Hono<AppEnv>();
 voiceApi.use("*", requireUser, requireOrg);
@@ -102,12 +102,14 @@ voiceApi.get("/bootstrap", async (c) => {
       [orgId, userId],
     ),
   ]);
+  const model = await llmForOrg(orgId);
   return c.json({
     clients,
     voices,
     runs,
     professions,
     tasks,
+    reasoning: { connected: !!model.llm, provider: model.llm?.provider ?? null },
     speech: {
       ...settings,
       sttKeySaved: !!secrets.sttKey,
@@ -423,6 +425,8 @@ voiceApi.post("/runs", requireRole("agent"), async (c) => {
     mime: string | null = null;
   if (f.file instanceof File && f.file.size) {
     const file = audio(f.file);
+    if (!transcriptionAvailable((await speechConfig(orgId)).settings))
+      fail(409, "Connect transcription in Voice settings to use recordings, or type your question.");
     input = encrypt(Buffer.from(await file.arrayBuffer()).toString("base64"));
     mime = file.type;
   }

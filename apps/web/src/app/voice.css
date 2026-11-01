@@ -435,3 +435,23 @@
   grid-template-columns: minmax(0, 1fr);
   margin: 12px 0;
 }
+.vd-capabilities {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  font-size: 13px;
+}
+.vd-capabilities li {
+  padding: 6px 10px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+}
+.vd-capabilities li.on {
+  color: var(--vd-accent);
+}
+.vd-capabilities li.off {
+  opacity: 0.85;
+}

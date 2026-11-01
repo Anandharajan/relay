@@ -744,3 +744,51 @@ test("permanent failures do not retry", async () => {
   assert.equal(status, "failed");
   assert.equal(attempts, 1);
 });
+test("HR handbook: multi-part answers and checklists stay complete without a model", async () => {
+  const handbook = await readFile(new URL("../../../docs/icp/hr/sample-handbook.txt", import.meta.url), "utf8");
+  const { id: client } = await json("/api/voice/clients", { body: { name: "Northstar" } });
+  const f = new FormData();
+  f.set("file", new Blob([handbook]), "handbook.txt");
+  const doc = await json(`/api/voice/clients/${client}/documents`, { form: f });
+  await processVoiceDocument({ documentId: doc.id, orgId });
+  const ask = async (task: string, question: string) => {
+    const q = new FormData();
+    q.set("clientId", client);
+    q.set("profession", "hr");
+    q.set("task", task);
+    q.set("question", question);
+    q.set("providerConsent", "yes");
+    const { id } = await json("/api/voice/runs", { form: q });
+    await processVoiceRun({ runId: id, orgId });
+    return (await ctx.db.one("select answer,status from voice_runs where id=$1", [id]))!;
+  };
+  const leave = await ask("answer", "How many annual leave days do full-time employees get, and how do they request leave?");
+  assert.match(leave.answer, /18 paid/);
+  assert.match(leave.answer, /PeoplePortal at least 5 working days/);
+  assert.match(leave.answer, /manager approves/);
+  const list = (await ask("checklist", "Prepare a first-day onboarding checklist for a new employee, ordered by time, with who is responsible for each step.")).answer;
+  const at = (s: string) => list.indexOf(s);
+  for (const step of ["9:30 AM", "10:30 AM", "2:00 PM", "security training"]) assert.ok(at(step) >= 0, list);
+  assert.ok(at("9:30 AM") < at("10:30 AM") && at("10:30 AM") < at("2:00 PM") && at("2:00 PM") < at("security training"), list);
+  assert.equal(list.split("security training").length, 2, list);
+  const relocation = await ask("answer", "What relocation reimbursement amount will a new hire receive?");
+  assert.match(relocation.answer, /does not define relocation/);
+  assert.ok(!/Do not invent|\d{3,}/.test(relocation.answer), relocation.answer);
+});
+test("recordings are refused up front when no transcription is connected", async () => {
+  const url = process.env.VOICESTUDIO_URL;
+  delete process.env.VOICESTUDIO_URL;
+  try {
+    const boot = await json("/api/voice/bootstrap");
+    assert.equal(boot.speech.transcriptionAvailable, false);
+    assert.equal(boot.reasoning.connected, false);
+    const f = audioForm();
+    f.set("clientId", clientId);
+    f.set("profession", "general");
+    f.set("task", "answer");
+    f.set("providerConsent", "yes");
+    assert.equal((await request("/api/voice/runs", { form: f })).status, 409);
+  } finally {
+    process.env.VOICESTUDIO_URL = url;
+  }
+});
