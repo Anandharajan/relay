@@ -43,6 +43,8 @@ Voice enrollment still needs the live phrase described in `VOICE_DESK.md`. Only 
    bash deploy/pilot-preflight.sh
    ```
 
+   The default preflight does not pull images or start containers. Read and report its results before installing anything. CUDA must be version 13, not merely any `nvcc` executable. GPU access inside Docker remains unverified until explicitly probed: after reviewing the static results and caching the image through the installation steps, run `PILOT_GPU_PROBE=1 bash deploy/pilot-preflight.sh`. That probe uses `--pull=never` and no network, and never downloads an image automatically. Do not run the pilot inside Docker Desktop's internal `docker-desktop` WSL distribution; use the intended Linux host or a user-managed Linux WSL2 distribution.
+
 2. **Create `.env.pilot`** (untracked) with independently generated random secrets: `RELAY_SECRET`, `VOICE_DB_PASSWORD`, `OMNIVOICE_API_KEY`, `FREETOKEN_API_KEY`, `SIGNUP_INVITE_CODE`. Add `PUBLIC_URL`, `CLOUDFLARE_TUNNEL_TOKEN` and `FREETOKEN_MODEL`.
 
 3. **Start FreeToken on the host.** Review the model's licence on its model card first. The key is required because auth is off by default. Docker containers reach the host through its gateway address, so bind to that address rather than `0.0.0.0`, and keep port 1919 closed in the firewall. The `--memory-ratio` value is a starting point that leaves room for speech engines:
