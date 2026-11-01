@@ -1,0 +1,386 @@
+{
+  "kind": "SIMULATED visual HR check - no real customer",
+  "at": "2026-11-01T07:48:50.638Z",
+  "client": {
+    "id": "52a2e55e-a932-499b-bc6f-4c3c3d82060e",
+    "name": "HR visual recheck — 1 Nov"
+  },
+  "reasoning": {
+    "connected": false,
+    "provider": null,
+    "providerSetting": "default",
+    "platformDefault": "Extractive (no LLM)"
+  },
+  "speech": {
+    "transcriptionAvailable": false,
+    "ttsProvider": "none",
+    "enrolledVoices": 0
+  },
+  "documents": [
+    {
+      "id": "20e546a2-e33e-45cc-8cff-e829d2f9e283",
+      "name": "sample-handbook.txt",
+      "status": "ready",
+      "error": null,
+      "created_at": "2026-11-01T07:44:28.921Z",
+      "chunks": 7
+    }
+  ],
+  "runs": [
+    {
+      "id": "30c201df-7bfa-4460-8427-53576d49fe3d",
+      "question": "What is the relocation allowance for a new employee?",
+      "task": "answer",
+      "status": "review",
+      "answer": "The new employee completes the security training by the end of day one. [1]",
+      "error": null,
+      "approved_at": null,
+      "citations": [
+        {
+          "n": 1,
+          "title": "sample-handbook.txt",
+          "excerpt": "## ONBOARDING - DAY ONE\nAt 9:30 AM the HR coordinator hosts the welcome orientation. At 10:30 AM IT leads account setup. At 2:00 PM the reporting manager explains the role, first-week goals and the buddy assignment. The new employee completes the security training by the end of day one.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 2,
+          "title": "sample-handbook.txt",
+          "excerpt": "## ESCALATION\nIf a question concerns a policy not in this handbook, ask the HR policy owner. Do not invent eligibility, exceptions, approval or reimbursement amounts.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 3,
+          "title": "sample-handbook.txt",
+          "excerpt": "## EXPENSES\nSubmit routine business expenses through ExpenseDesk within 30 calendar days of the expense. Attach the receipt and business purpose. The finance team reviews complete claims within 7 working days. This policy does not define relocation reimbursement.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        }
+      ],
+      "steps": [
+        {
+          "id": "listen",
+          "role": "Transcriber",
+          "stage": 0,
+          "action": "Turning your recording into text",
+          "result": "Typed question; nothing to transcribe.",
+          "status": "skipped"
+        },
+        {
+          "id": "plan",
+          "ms": 9,
+          "role": "Planner",
+          "stage": 1,
+          "action": "Deciding what to read and whether anything is unclear",
+          "result": "1 search across 1 of 1 ready document.",
+          "status": "done",
+          "startedAt": 1793519190501
+        },
+        {
+          "id": "research",
+          "ms": 19,
+          "role": "Researcher",
+          "stage": 2,
+          "action": "Searching only this client’s documents",
+          "result": "3 relevant passages from 1 document(s).",
+          "status": "done",
+          "startedAt": 1793519190514
+        },
+        {
+          "id": "write",
+          "ms": 7,
+          "role": "Writer",
+          "stage": 3,
+          "action": "Picking the sentences that answer the question",
+          "result": "Extractive mode: sentences selected, no AI rewrite.",
+          "status": "done",
+          "startedAt": 1793519190537
+        },
+        {
+          "id": "verify",
+          "role": "Verifier",
+          "stage": 4,
+          "action": "Checking every claim against its source",
+          "result": "Reply is quoted directly from the sources.",
+          "status": "done"
+        },
+        {
+          "id": "speak",
+          "role": "Voice",
+          "stage": 5,
+          "action": "Generating speech in your authorized voice",
+          "status": "waiting"
+        }
+      ]
+    },
+    {
+      "id": "c0789b9e-8951-47c3-9ad7-82f3f05422c7",
+      "question": "What relocation reimbursement amount will a new hire receive?",
+      "task": "answer",
+      "status": "review",
+      "answer": "Attach the receipt and business purpose. This policy does not define relocation reimbursement. [2]",
+      "error": null,
+      "approved_at": null,
+      "citations": [
+        {
+          "n": 1,
+          "title": "sample-handbook.txt",
+          "excerpt": "## ESCALATION\nIf a question concerns a policy not in this handbook, ask the HR policy owner. Do not invent eligibility, exceptions, approval or reimbursement amounts.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 2,
+          "title": "sample-handbook.txt",
+          "excerpt": "## EXPENSES\nSubmit routine business expenses through ExpenseDesk within 30 calendar days of the expense. Attach the receipt and business purpose. The finance team reviews complete claims within 7 working days. This policy does not define relocation reimbursement.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 3,
+          "title": "sample-handbook.txt",
+          "excerpt": "## ANNUAL LEAVE\nFull-time employees receive 18 paid annual leave days per calendar year. Submit requests in PeoplePortal at least 5 working days before the leave begins. The reporting manager approves requests. No more than 5 unused days may carry forward, and carried days expire on 31 March. Sick leave is a separate policy and is not specified in this document.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 4,
+          "title": "sample-handbook.txt",
+          "excerpt": "## ONBOARDING - DAY ONE\nAt 9:30 AM the HR coordinator hosts the welcome orientation. At 10:30 AM IT leads account setup. At 2:00 PM the reporting manager explains the role, first-week goals and the buddy assignment. The new employee completes the security training by the end of day one.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 5,
+          "title": "sample-handbook.txt",
+          "excerpt": "## REMOTE WORK\nEmployees may request up to 2 remote-work days per week, subject to reporting-manager approval. Customer-facing coverage must be maintained. Requests go through PeoplePortal before the start of the work week.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        }
+      ],
+      "steps": [
+        {
+          "id": "listen",
+          "role": "Transcriber",
+          "stage": 0,
+          "action": "Turning your recording into text",
+          "result": "Typed question; nothing to transcribe.",
+          "status": "skipped"
+        },
+        {
+          "id": "plan",
+          "ms": 12,
+          "role": "Planner",
+          "stage": 1,
+          "action": "Deciding what to read and whether anything is unclear",
+          "result": "1 search across 1 of 1 ready document.",
+          "status": "done",
+          "startedAt": 1793519171458
+        },
+        {
+          "id": "research",
+          "ms": 16,
+          "role": "Researcher",
+          "stage": 2,
+          "action": "Searching only this client’s documents",
+          "result": "5 relevant passages from 1 document(s).",
+          "status": "done",
+          "startedAt": 1793519171473
+        },
+        {
+          "id": "write",
+          "ms": 4,
+          "role": "Writer",
+          "stage": 3,
+          "action": "Picking the sentences that answer the question",
+          "result": "Extractive mode: sentences selected, no AI rewrite.",
+          "status": "done",
+          "startedAt": 1793519171492
+        },
+        {
+          "id": "verify",
+          "role": "Verifier",
+          "stage": 4,
+          "action": "Checking every claim against its source",
+          "result": "Reply is quoted directly from the sources.",
+          "status": "done"
+        },
+        {
+          "id": "speak",
+          "role": "Voice",
+          "stage": 5,
+          "action": "Generating speech in your authorized voice",
+          "status": "waiting"
+        }
+      ]
+    },
+    {
+      "id": "1d6127bb-3776-4d0d-8833-60e3ed91ff03",
+      "question": "Prepare a first-day onboarding checklist for a new employee, ordered by time, with who is responsible for each step.",
+      "task": "checklist",
+      "status": "review",
+      "answer": "ONBOARDING - DAY ONE:\n- At 9:30 AM the HR coordinator hosts the welcome orientation. [1]\n- At 10:30 AM IT leads account setup. [1]\n- At 2:00 PM the reporting manager explains the role, first-week goals and the buddy assignment. [1]\n- The new employee completes the security training by the end of day one. [1]\n\nONBOARDING - BEFORE DAY ONE:\n- The HR coordinator sends the welcome email and requests the signed employment agreement 3 working days before the start date. [2]\n- IT prepares the laptop and company account before the start date. [2]\n- Do not collect identity documents through chat; use the approved secure onboarding portal. [2]",
+      "error": null,
+      "approved_at": null,
+      "citations": [
+        {
+          "n": 1,
+          "title": "sample-handbook.txt",
+          "excerpt": "## ONBOARDING - DAY ONE\nAt 9:30 AM the HR coordinator hosts the welcome orientation. At 10:30 AM IT leads account setup. At 2:00 PM the reporting manager explains the role, first-week goals and the buddy assignment. The new employee completes the security training by the end of day one.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 2,
+          "title": "sample-handbook.txt",
+          "excerpt": "## ONBOARDING - BEFORE DAY ONE\nThe HR coordinator sends the welcome email and requests the signed employment agreement 3 working days before the start date. IT prepares the laptop and company account before the start date. Do not collect identity documents through chat; use the approved secure onboarding portal.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 3,
+          "title": "sample-handbook.txt",
+          "excerpt": "## EXPENSES\nSubmit routine business expenses through ExpenseDesk within 30 calendar days of the expense. Attach the receipt and business purpose. The finance team reviews complete claims within 7 working days. This policy does not define relocation reimbursement.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 4,
+          "title": "sample-handbook.txt",
+          "excerpt": "## ESCALATION\nIf a question concerns a policy not in this handbook, ask the HR policy owner. Do not invent eligibility, exceptions, approval or reimbursement amounts.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        }
+      ],
+      "steps": [
+        {
+          "id": "listen",
+          "role": "Transcriber",
+          "stage": 0,
+          "action": "Turning your recording into text",
+          "result": "Typed question; nothing to transcribe.",
+          "status": "skipped"
+        },
+        {
+          "id": "plan",
+          "ms": 12,
+          "role": "Planner",
+          "stage": 1,
+          "action": "Deciding what to read and whether anything is unclear",
+          "result": "1 search across 1 of 1 ready document.",
+          "status": "done",
+          "startedAt": 1793519152443
+        },
+        {
+          "id": "research",
+          "ms": 17,
+          "role": "Researcher",
+          "stage": 2,
+          "action": "Searching only this client’s documents",
+          "result": "4 relevant passages from 1 document(s).",
+          "status": "done",
+          "startedAt": 1793519152458
+        },
+        {
+          "id": "write",
+          "ms": 11,
+          "role": "Writer",
+          "stage": 3,
+          "action": "Picking the sentences that answer the question",
+          "result": "Extractive mode: sentences selected, no AI rewrite.",
+          "status": "done",
+          "startedAt": 1793519152479
+        },
+        {
+          "id": "verify",
+          "role": "Verifier",
+          "stage": 4,
+          "action": "Checking every claim against its source",
+          "result": "Reply is quoted directly from the sources.",
+          "status": "done"
+        },
+        {
+          "id": "speak",
+          "role": "Voice",
+          "stage": 5,
+          "action": "Generating speech in your authorized voice",
+          "status": "waiting"
+        }
+      ]
+    },
+    {
+      "id": "1ebbd480-6f9b-4763-9cfc-059c04a867b0",
+      "question": "How many annual leave days do full-time employees get, and how do they request leave?",
+      "task": "answer",
+      "status": "ready_text",
+      "answer": "Full-time employees receive 18 paid annual leave days per calendar year. Submit requests in PeoplePortal at least 5 working days before the leave begins. The reporting manager approves requests. [1]",
+      "error": null,
+      "approved_at": "2026-11-01T07:47:40.948Z",
+      "citations": [
+        {
+          "n": 1,
+          "title": "sample-handbook.txt",
+          "excerpt": "## ANNUAL LEAVE\nFull-time employees receive 18 paid annual leave days per calendar year. Submit requests in PeoplePortal at least 5 working days before the leave begins. The reporting manager approves requests. No more than 5 unused days may carry forward, and carried days expire on 31 March. Sick leave is a separate policy and is not specified in this document.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 2,
+          "title": "sample-handbook.txt",
+          "excerpt": "## REMOTE WORK\nEmployees may request up to 2 remote-work days per week, subject to reporting-manager approval. Customer-facing coverage must be maintained. Requests go through PeoplePortal before the start of the work week.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        },
+        {
+          "n": 3,
+          "title": "sample-handbook.txt",
+          "excerpt": "## ONBOARDING - BEFORE DAY ONE\nThe HR coordinator sends the welcome email and requests the signed employment agreement 3 working days before the start date. IT prepares the laptop and company account before the start date. Do not collect identity documents through chat; use the approved secure onboarding portal.",
+          "documentId": "20e546a2-e33e-45cc-8cff-e829d2f9e283"
+        }
+      ],
+      "steps": [
+        {
+          "id": "listen",
+          "role": "Transcriber",
+          "stage": 0,
+          "action": "Turning your recording into text",
+          "result": "Typed question; nothing to transcribe.",
+          "status": "skipped"
+        },
+        {
+          "id": "plan",
+          "ms": 21,
+          "role": "Planner",
+          "stage": 1,
+          "action": "Deciding what to read and whether anything is unclear",
+          "result": "1 search across 1 of 1 ready document.",
+          "status": "done",
+          "startedAt": 1793519110457
+        },
+        {
+          "id": "research",
+          "ms": 29,
+          "role": "Researcher",
+          "stage": 2,
+          "action": "Searching only this client’s documents",
+          "result": "3 relevant passages from 1 document(s).",
+          "status": "done",
+          "startedAt": 1793519110487
+        },
+        {
+          "id": "write",
+          "ms": 10,
+          "role": "Writer",
+          "stage": 3,
+          "action": "Picking the sentences that answer the question",
+          "result": "Extractive mode: sentences selected, no AI rewrite.",
+          "status": "done",
+          "startedAt": 1793519110523
+        },
+        {
+          "id": "verify",
+          "role": "Verifier",
+          "stage": 4,
+          "action": "Checking every claim against its source",
+          "result": "Reply is quoted directly from the sources.",
+          "status": "done"
+        },
+        {
+          "id": "speak",
+          "role": "Voice",
+          "stage": 5,
+          "action": "Generating speech in your authorized voice",
+          "result": "Text reply ready; no cloned voice selected.",
+          "status": "skipped"
+        }
+      ]
+    }
+  ]
+}
