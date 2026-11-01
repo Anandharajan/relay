@@ -1,4 +1,6 @@
 import { Hono, type Context } from 'hono';
+import {bodyLimit} from 'hono/body-limit';
+import {speechConfig,transcribeAudio,widgetVoiceAvailable} from '../adapters/speech.ts';
 import { cors } from 'hono/cors';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
@@ -63,6 +65,20 @@ async function visitorConversation(c: Context<WidgetEnv>, id?: string | null): P
   );
 }
 
+widget.post('/voice/transcribe',bodyLimit({maxSize:12*1024*1024}),async c=>{
+  await visitorAuth(c);
+  const org=c.get('org');
+  if(!originAllowed(org,c.req.header('origin')))fail(403,'Website not allowed');
+  const {settings,secrets}=await speechConfig(org.id);
+  if(!widgetVoiceAvailable(settings))fail(403,'Voice input is not enabled for this chat');
+  const ip=c.req.header('x-forwarded-for')?.split(',')[0]?.trim()??'local';
+  if(!rateLimit(`widget-voice-org:${org.id}`,30,60_000).ok||!rateLimit(`widget-voice-ip:${org.id}:${ip}`,10,60_000).ok)fail(429,'Speech request limit reached. Please wait.');
+  if(!rateLimit(`widget-voice:${org.id}:${c.get('visitorId')}`,5,60_000).ok)fail(429,'Please wait before recording again');
+  const form=await c.req.parseBody(),file=form.file;
+  if(form.providerConsent!=='yes'||!(file instanceof File)||!file.size||file.size>10*1024*1024||!['audio/webm','audio/mp4','audio/wav','audio/ogg','audio/mpeg'].includes(file.type.split(';')[0]!))fail(400,'Confirm speech processing and upload a supported recording up to 10 MB');
+  try{return c.json({text:await transcribeAudio(new Uint8Array(await file.arrayBuffer()),file.type,settings,secrets)})}catch(e){fail(400,(e as Error).message)}
+});
+
 widget.post('/session', async (c) => {
   const b = await body(c, z.object({ siteKey: z.string().max(64), token: z.string().max(2000).optional() }));
   const org = await getOrgBySiteKey(b.siteKey);
@@ -76,7 +92,7 @@ widget.post('/session', async (c) => {
   visitorId ??= `v_${uuid().replace(/-/g, '').slice(0, 16)}`;
   const token = await signJwt({ sub: visitorId, org: org.id, typ: 'visitor' }, '180d');
   const s = org.settings;
-  return c.json({ token, visitorId, config: { name: org.name, botName: s.botName, brandColor: s.brandColor, greeting: s.greeting, consentText: s.consentText, reportUploads: s.vertical === 'healthcare' } });
+  return c.json({ token, visitorId, config: { name: org.name, botName: s.botName, brandColor: s.brandColor, greeting: s.greeting, consentText: s.consentText, reportUploads: s.vertical === 'healthcare', voiceInput: widgetVoiceAvailable((await speechConfig(org.id)).settings) } });
 });
 
 widget.get('/conversation', async (c) => {

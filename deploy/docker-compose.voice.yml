@@ -1,0 +1,58 @@
+name: fin-voice
+services:
+  app:
+    image: fin-voice:local
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8788:8787"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      RELAY_SECRET: ${RELAY_SECRET:?Set RELAY_SECRET in .env.voice}
+      DATABASE_URL: postgres://voice:${VOICE_DB_PASSWORD:?Set VOICE_DB_PASSWORD in .env.voice}@postgres:5432/voice
+      PUBLIC_URL: http://localhost:8788
+      RELAY_PRODUCT: voice
+      DEMO_SEED: "false"
+      LLM_PROVIDER: extractive
+      VOICESTUDIO_URL: ${VOICESTUDIO_URL:-}
+      VOICESTUDIO_API_KEY: ${VOICESTUDIO_API_KEY:-}
+      SPEECH_STT_ALLOWED_HOSTS: ${SPEECH_STT_ALLOWED_HOSTS:-}
+      # This compose file is a single-tenant install bound to localhost.
+      SPEECH_ALLOW_PRIVATE_HOSTS: ${SPEECH_ALLOW_PRIVATE_HOSTS:-true}
+      WIDGET_SPEECH_USE_OPERATOR: ${WIDGET_SPEECH_USE_OPERATOR:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg18-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: voice
+      POSTGRES_PASSWORD: ${VOICE_DB_PASSWORD:?Set VOICE_DB_PASSWORD in .env.voice}
+      POSTGRES_DB: voice
+    volumes:
+      - voice-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voice -d voice"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  # Optional: `--profile voicestudio` runs VoiceStudio beside the app (a 17 GB image, plus model weights).
+  # Then in Voice settings use http://voicestudio:3900 with OMNIVOICE_API_KEY as the key.
+  voicestudio:
+    profiles: ["voicestudio"]
+    image: ghcr.io/debpalash/voicestudio:stable
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3900:3900"
+    environment:
+      OMNIVOICE_API_KEY: ${OMNIVOICE_API_KEY:-}
+      OMNIVOICE_ANALYTICS_DISABLED: "1"
+    volumes:
+      - voicestudio-data:/app/omnivoice_data
+volumes:
+  voice-postgres:
+  voicestudio-data:

@@ -62,7 +62,7 @@ type Handlers = Record<string, (data: any) => void>;
 /** One shared EventSource for the dashboard realtime stream; components subscribe to event types. */
 const listeners = new Set<Handlers>();
 let source: EventSource | null = null;
-const knownEvents = ['message.created', 'conversation.created', 'conversation.updated', 'draft.created', 'draft.updated', 'presence', 'attention', 'knowledge.updated', 'simulation.progress', 'visits.updated', 'records.updated', 'calls.updated', 'reviews.updated', 'notify', 'agent.activity', 'copilot.started'];
+const knownEvents = ['voice.updated', 'message.created', 'conversation.created', 'conversation.updated', 'draft.created', 'draft.updated', 'presence', 'attention', 'knowledge.updated', 'simulation.progress', 'visits.updated', 'records.updated', 'calls.updated', 'reviews.updated', 'notify', 'agent.activity', 'copilot.started'];
 
 function ensureSource() {
   if (source) return;

@@ -1,3 +1,4 @@
+import { voiceApi } from './routes/voice.ts';
 import { notifications } from './routes/notifications.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -47,9 +48,10 @@ export function buildApp() {
   });
 
   app.get('/api/public/config', async (c) =>
-    c.json({ demoSiteKey: await demoSiteKey(), allowSignup: config.allowSignup, mode: config.mode, demoDashboard: config.demo.seed }),
+    c.json({ demoSiteKey: await demoSiteKey(), allowSignup: config.allowSignup, mode: config.mode, demoDashboard: config.demo.seed, product: config.product }),
   );
 
+  app.route('/api/voice', voiceApi);
   app.route('/api/auth', auth);
   app.route('/api/me', me);
   app.route('/api/workspace', workspace);

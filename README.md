@@ -88,6 +88,10 @@ Every vendor sits behind a small interface: `Db` (`src/db.ts`), `Llm` (`adapters
 
 Prompt-injection hygiene: knowledge and customer text are framed as untrusted data, the router can only choose configured actions, sensitive actions require a human, and the model never sees raw PII.
 
+## Relay Voice
+
+A separate product built from this repository: client-scoped documents, a spoken or typed question, a verified sourced draft, human review, then a reply in your own enrolled voice. It deploys on its own (`RELAY_PRODUCT=voice`) and never replaces the hospital demo. See [Voice Desk setup, architecture and limits](docs/VOICE_DESK.md).
+
 ## Repository layout
 
 ```
