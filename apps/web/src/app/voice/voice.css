@@ -494,6 +494,20 @@
 .vd-pane-chat > .vd-context {
   padding: 8px 16px;
   border-bottom: 1px solid var(--border, #dce5e0);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+.vd-options .vd-context {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-top: 4px;
+}
+.vd-options summary {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.vd-tabpanel .stage-agents {
+  grid-template-columns: minmax(0, 1fr);
 }
 .vd-desk label {
   gap: 4px;
@@ -507,7 +521,7 @@
 .vd-desk details {
   margin-top: 0;
 }
-.vd-add-client {
+.vd-add-client[open] {
   grid-column: 1 / -1;
 }
 .vd-add-client form {
@@ -849,6 +863,28 @@
     order: 3;
     width: 100%;
     font-size: 11px;
+  }
+  .vd-capabilities:not(.open) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .vd-capabilities:not(.open) li {
+    flex: none;
+    white-space: nowrap;
+  }
+  .vd .vd-options .vd-context {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .vd .vd-options .vd-context > label {
+    font-size: 12px !important;
+    gap: 4px !important;
+  }
+  .vd .vd-reply-actions .vd-text-button,
+  .vd .vd-reply > .vd-text-button {
+    min-height: 36px;
+  }
+  .vd-cites button {
+    padding: 8px;
   }
   .vd-bar-link {
     margin-right: 44px;

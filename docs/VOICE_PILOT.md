@@ -24,7 +24,11 @@ Job: voice_render
   Voice ────────────► VoiceStudio  /v1/audio/speech           (reply in the enrolled voice)
 ```
 
-Each model agent is a separate stateless call with its own instructions. A reply makes up to five model calls: plan, write, review, and one rewrite with a second review.
+Each model agent is a separate stateless call with its own instructions. Most replies make one model call or none, and the most a reply can make is five: plan (follow-ups only), write, review (only when the draft barely touches the topic), and one rewrite with a second review (only when no source sentences can answer).
+
+To keep tokens and waiting down, the model receives only the sentences relevant to the question, up to a fixed size for each task. With a BYOK provider, a clear answer quoted from the files makes no model call. An approved answer to the same question comes back for review without a model call, unless a document has been added since. A question whose topic no passage mentions gets "could not find" without one.
+
+On this PC, choosing quantized model weights is the main way to fit the model and speech engines in GPU memory and speed up answers. Measure answer quality before and after choosing them.
 
 | If this stops | The person gets |
 | --- | --- |

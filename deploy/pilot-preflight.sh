@@ -46,7 +46,8 @@ else
 fi
 
 ram=$(awk '/MemTotal/ {print int($2 / 1048576)}' /proc/meminfo 2>/dev/null || echo 0)
-[ "$ram" -ge 32 ] && ok "RAM ${ram} GB" || bad "RAM ${ram} GB: the smallest reported FreeToken setup has 32 GB"
+# A 32 GB machine reports a little less than 32 once hardware reservations are taken out.
+[ "$ram" -ge 31 ] && ok "RAM ${ram} GB" || bad "RAM ${ram} GB: the smallest reported FreeToken setup has 32 GB"
 disk=$(df -BG --output=avail . 2>/dev/null | tail -1 | tr -dc 0-9)
 [ "${disk:-0}" -ge 150 ] && ok "Disk ${disk} GB free" || bad "Disk ${disk:-0} GB free: allow 150 GB for images and model weights"
 

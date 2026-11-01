@@ -27,6 +27,8 @@ services:
         value: extractive
       - key: DEMO_SEED
         value: "false"
+      - key: SIGNUP_INVITE_CODE
+        generateValue: true   # keeps the public address invite-only; read it in the service's Environment tab
       - key: PLATFORM_ADMIN_EMAILS
         sync: false
       - key: VOICESTUDIO_URL

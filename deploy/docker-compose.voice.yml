@@ -23,6 +23,10 @@ services:
       # This compose file is a single-tenant install bound to localhost.
       SPEECH_ALLOW_PRIVATE_HOSTS: ${SPEECH_ALLOW_PRIVATE_HOSTS:-true}
       WIDGET_SPEECH_USE_OPERATOR: ${WIDGET_SPEECH_USE_OPERATOR:-false}
+      # For a machine whose containers only reach the internet through a proxy, such as Docker Desktop's.
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NODE_USE_ENV_PROXY: ${NODE_USE_ENV_PROXY:-}
+      NO_PROXY: postgres,voicestudio,host.docker.internal,localhost,127.0.0.1
     depends_on:
       postgres:
         condition: service_healthy
