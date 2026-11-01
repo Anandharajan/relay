@@ -15,7 +15,8 @@ export function overlap(q: Set<string>, s: Set<string>): number {
   let hit = 0;
   for (const t of q) {
     if (s.has(t)) hit++;
-    else if (t.length >= 5 && [...s].some((x) => x.length >= 5 && (x.startsWith(t.slice(0, 5)) || t.startsWith(x.slice(0, 5))))) hit += 0.7;
+    // Six letters: five made "receive" match "receipt".
+    else if (t.length >= 6 && [...s].some((x) => x.length >= 6 && (x.startsWith(t.slice(0, 6)) || t.startsWith(x.slice(0, 6))))) hit += 0.7;
   }
   return hit / q.size;
 }

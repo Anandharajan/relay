@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
+import { clearRateLimits } from "../src/lib/ratelimit.ts";
 process.env.DATA_DIR = ":memory:";
 process.env.DATABASE_URL = "";
 process.env.DEMO_SEED = "false";
@@ -47,6 +48,8 @@ let failAudio = false,
   transcript = "When does the onboarding workshop begin?",
   consentCalls = 0,
   spokenInput = "";
+let modelDown = false;
+let reviewerReply = '{"addresses":true,"reason":"ok"}';
 const engine = createServer(async (req, res) => {
   calls++;
   const body: Buffer[] = [];
@@ -69,8 +72,23 @@ const engine = createServer(async (req, res) => {
     res.setHeader("content-type", "audio/wav");
     res.end(wav);
   } else if (req.url === "/v1/chat/completions") {
-    modelInput = Buffer.concat(body).toString();
+    const sent = Buffer.concat(body).toString();
+    if (modelDown) {
+      res.statusCode = 503;
+      res.end("model stopped");
+      return;
+    }
     res.setHeader("content-type", "application/json");
+    if (sent.includes("You review a draft reply")) {
+      res.end(
+        JSON.stringify({
+          choices: [{ message: { content: reviewerReply } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5 },
+        }),
+      );
+      return;
+    }
+    modelInput = sent;
     res.end(
       JSON.stringify({
         choices: [{ message: { content: modelReply } }],
@@ -752,6 +770,7 @@ test("HR handbook: multi-part answers and checklists stay complete without a mod
   const doc = await json(`/api/voice/clients/${client}/documents`, { form: f });
   await processVoiceDocument({ documentId: doc.id, orgId });
   const ask = async (task: string, question: string) => {
+    clearRateLimits();
     const q = new FormData();
     q.set("clientId", client);
     q.set("profession", "hr");
@@ -774,8 +793,115 @@ test("HR handbook: multi-part answers and checklists stay complete without a mod
   const relocation = await ask("answer", "What relocation reimbursement amount will a new hire receive?");
   assert.match(relocation.answer, /does not define relocation/);
   assert.ok(!/Do not invent|\d{3,}/.test(relocation.answer), relocation.answer);
+  assert.ok(!/receipt/i.test(relocation.answer), relocation.answer);
+  assert.ok(!/ONBOARDING - BEFORE|welcome email/i.test(list), list);
+  for (const reworded of [
+    "What is the relocation allowance for a new employee?",
+    "How much relocation money does a new starter get?",
+  ]) {
+    const answer = (await ask("answer", reworded)).answer;
+    assert.match(answer, /does not define relocation/, reworded);
+    assert.ok(!/security training/.test(answer), answer);
+  }
+  // A topic the handbook never covers is not answered with a sentence that shares a word with it.
+  for (const missing of ["What is the parental leave policy?", "How much is the gym membership benefit?"]) {
+    const run = await ask("answer", missing);
+    assert.match(run.answer, /could not find/, `${missing}: ${run.answer}`);
+    assert.equal(run.status, "review");
+  }
+  const remote = (await ask("answer", "How many remote days can I work each week?")).answer;
+  assert.match(remote, /2 remote-work days/);
+  const expense = (await ask("answer", "How long do I have to submit an expense?")).answer;
+  assert.match(expense, /30 calendar days/);
+  const both = (await ask("checklist", "Prepare the onboarding checklist, including what happens before day one.")).answer;
+  assert.ok(both.indexOf("welcome email") >= 0 && both.indexOf("welcome email") < both.indexOf("9:30 AM"), both);
+});
+test("relevance holds on a differently structured document", async () => {
+  const guide = [
+    "# Clinic visitor guide",
+    "## Parking",
+    "Visitors park in Lot C behind the east wing. Parking costs 40 rupees per hour and is paid at the kiosk.",
+    "## Visiting hours",
+    "General wards accept visitors from 4 PM to 7 PM. Intensive care allows one visitor for 15 minutes at a time.",
+    "## Food",
+    "The cafeteria on level 2 is open from 7 AM to 9 PM. Outside food needs approval from the ward nurse.",
+  ].join("\n");
+  const { id: client } = await json("/api/voice/clients", { body: { name: "Clinic guide" } });
+  const f = new FormData();
+  f.set("file", new Blob([guide]), "guide.md");
+  const doc = await json(`/api/voice/clients/${client}/documents`, { form: f });
+  await processVoiceDocument({ documentId: doc.id, orgId });
+  const ask = async (question: string) => {
+    clearRateLimits();
+    const q = new FormData();
+    q.set("clientId", client);
+    q.set("profession", "general");
+    q.set("task", "answer");
+    q.set("question", question);
+    q.set("providerConsent", "yes");
+    const { id } = await json("/api/voice/runs", { form: q });
+    await processVoiceRun({ runId: id, orgId });
+    return String((await ctx.db.one("select answer from voice_runs where id=$1", [id]))!.answer);
+  };
+  assert.match(await ask("Where should visitors park and how much does parking cost?"), /Lot C[\s\S]*40 rupees/);
+  assert.match(await ask("When is the cafeteria open?"), /7 AM to 9 PM/);
+  assert.match(await ask("Is there a pharmacy on site?"), /could not find/);
+});
+test("a stopped model still gives a sourced reply, held for review", async () => {
+  clearRateLimits();
+  await json("/api/workspace/model", {
+    method: "PUT",
+    body: { provider: "freetoken", model: "fixture-model", baseUrl: process.env.VOICESTUDIO_URL + "/v1" },
+  });
+  modelDown = true;
+  try {
+    const q = new FormData();
+    q.set("clientId", clientId);
+    q.set("profession", "general");
+    q.set("task", "answer");
+    q.set("question", "When does the onboarding workshop begin?");
+    q.set("providerConsent", "yes");
+    const { id } = await json("/api/voice/runs", { form: q });
+    await processVoiceRun({ runId: id, orgId });
+    const run = (await ctx.db.one("select answer,status,steps from voice_runs where id=$1", [id]))!;
+    assert.match(run.answer, /Monday/);
+    assert.equal(run.status, "review");
+    assert.match(run.steps.find((s: any) => s.id === "write").result, /did not respond/);
+  } finally {
+    modelDown = false;
+    await json("/api/workspace/model", { method: "PUT", body: { provider: "extractive" } });
+  }
+});
+test("the reviewer agent rejects a cited draft that misses the question", async () => {
+  clearRateLimits();
+  await json("/api/workspace/model", {
+    method: "PUT",
+    body: { provider: "freetoken", model: "fixture-model", baseUrl: process.env.VOICESTUDIO_URL + "/v1" },
+  });
+  const previous = modelReply;
+  modelReply = '{"clarify":null,"queries":["onboarding workshop"],"documents":[]}';
+  reviewerReply = '{"addresses":false,"reason":"talks about something else"}';
+  try {
+    const q = new FormData();
+    q.set("clientId", clientId);
+    q.set("profession", "general");
+    q.set("task", "answer");
+    q.set("question", "When does the onboarding workshop begin?");
+    q.set("providerConsent", "yes");
+    const { id } = await json("/api/voice/runs", { form: q });
+    modelReply = "The onboarding workshop begins on Monday at 9 AM [1].";
+    await processVoiceRun({ runId: id, orgId });
+    const run = (await ctx.db.one("select status,steps from voice_runs where id=$1", [id]))!;
+    assert.equal(run.status, "review");
+    assert.match(run.steps.find((s: any) => s.id === "verify").result, /off-question/);
+  } finally {
+    modelReply = previous;
+    reviewerReply = '{"addresses":true,"reason":"ok"}';
+    await json("/api/workspace/model", { method: "PUT", body: { provider: "extractive" } });
+  }
 });
 test("recordings are refused up front when no transcription is connected", async () => {
+  clearRateLimits();
   const url = process.env.VOICESTUDIO_URL;
   delete process.env.VOICESTUDIO_URL;
   try {

@@ -10,6 +10,7 @@ import { recordRun } from '../services/agents.ts';
 type Handler = (payload: any) => Promise<void>;
 const handlers = new Map<string, Handler>();
 let timer: NodeJS.Timeout | null = null;
+let recovery: NodeJS.Timeout | null = null;
 let running = 0;
 /** Only processes that called startJobs() claim work; web-only instances just enqueue. */
 let active = false;
@@ -75,11 +76,19 @@ async function execute(job: { id: string; type: string; payload: any; attempts: 
   }
 }
 
+/** A process that died mid-job leaves it 'running': retry it, or give up after three attempts. */
+export async function recoverStaleJobs() {
+  const age = `${Number(process.env.JOB_STALE_MINUTES ?? 10)} minutes`;
+  await ctx.db.query(`update jobs set status = 'failed', last_error = 'Worker stopped during the job', updated_at = now() where status = 'running' and attempts >= 3 and updated_at < now() - ($1)::interval`, [age]);
+  await ctx.db.query(`update jobs set status = 'queued', updated_at = now() where status = 'running' and updated_at < now() - ($1)::interval`, [age]);
+}
+
 export async function startJobs(cron: { everyMs: number; run: () => Promise<void> }[]) {
-  await ctx.db.query(`update jobs set status = 'queued' where status = 'running' and updated_at < now() - interval '10 minutes'`);
+  await recoverStaleJobs();
   await ctx.db.query(`delete from jobs where status = 'done' and updated_at < now() - interval '7 days'`);
   active = true;
   timer = setInterval(tick, 1000);
+  recovery = setInterval(() => recoverStaleJobs().catch((e) => console.error('[jobs] recovery failed', e.message)), 60_000);
   for (const c of cron) setInterval(() => c.run().catch((e) => console.error('[cron]', e.message)), c.everyMs);
   setImmediate(tick);
 }
@@ -87,6 +96,7 @@ export async function startJobs(cron: { everyMs: number; run: () => Promise<void
 export function stopJobs() {
   active = false;
   if (timer) clearInterval(timer);
+  if (recovery) clearInterval(recovery);
 }
 
 /** Wait (up to timeoutMs) for in-flight jobs to finish, for graceful shutdown on deploys. */

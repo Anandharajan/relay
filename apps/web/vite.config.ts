@@ -8,13 +8,14 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // Prompt, not autoUpdate: an open tab must learn of a new build without losing a draft.
+      registerType: 'prompt',
       // widget.js is deliberately NOT precached: it must always be fresh for embedding sites.
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'Relay — AI support inbox',
+        name: 'Relay',
         short_name: 'Relay',
-        description: 'Open-source AI support agent for WhatsApp and web chat.',
+        description: 'Sourced replies from your own documents.',
         theme_color: '#4f46e5',
         background_color: '#ffffff',
         display: 'standalone',

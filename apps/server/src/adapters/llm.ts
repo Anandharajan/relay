@@ -17,6 +17,8 @@ export interface LlmResult {
 export interface Llm {
   provider: string;
   model: string;
+  /** A quick reachability check that spends no tokens, where the provider supports one. */
+  ping?(): Promise<boolean>;
   complete(system: string, turns: LlmTurn[], opts?: { maxTokens?: number }): Promise<LlmResult>;
 }
 
@@ -36,6 +38,7 @@ const openAiCompatible: Record<string, { baseUrl: string; model: string }> = {
   groq: { baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
   openrouter: { baseUrl: 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' },
   ollama: { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5:7b' },
+  freetoken: { baseUrl: 'http://localhost:1919/v1', model: 'default' },
   'openai-compatible': { baseUrl: 'http://localhost:4000/v1', model: 'default' },
 };
 
@@ -48,6 +51,7 @@ export const providerCatalog = [
   { id: 'groq', label: 'Groq (BYOK)', needsKey: true, model: openAiCompatible.groq!.model },
   { id: 'openrouter', label: 'OpenRouter (BYOK)', needsKey: true, model: openAiCompatible.openrouter!.model },
   { id: 'ollama', label: 'Ollama (self-hosted, open-weight)', needsKey: false, model: openAiCompatible.ollama!.model },
+  { id: 'freetoken', label: 'FreeToken (self-hosted, open-weight)', needsKey: false, model: openAiCompatible.freetoken!.model },
   { id: 'openai-compatible', label: 'Any OpenAI-compatible (LiteLLM, vLLM...)', needsKey: false, model: '' },
 ];
 
@@ -108,6 +112,13 @@ function openAiLlm(provider: string, model: string, baseUrl: string, apiKey?: st
   return {
     provider,
     model,
+    async ping() {
+      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/models`, {
+        headers: apiKey ? { authorization: `Bearer ${apiKey}` } : {},
+        signal: AbortSignal.timeout(3000),
+      });
+      return res.ok;
+    },
     async complete(system, turns, opts) {
       const res = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
@@ -118,7 +129,7 @@ function openAiLlm(provider: string, model: string, baseUrl: string, apiKey?: st
           temperature: 0.2,
           messages: [{ role: 'system', content: system }, ...turns],
         }),
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(config.llmTimeoutMs),
       });
       if (!res.ok) throw new Error(`${provider} error ${res.status}: ${(await res.text()).slice(0, 300)}`);
       const data = (await res.json()) as any;

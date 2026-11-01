@@ -109,7 +109,11 @@ voiceApi.get("/bootstrap", async (c) => {
     runs,
     professions,
     tasks,
-    reasoning: { connected: !!model.llm, provider: model.llm?.provider ?? null },
+    reasoning: {
+      connected: !!model.llm,
+      provider: model.llm?.provider ?? null,
+      local: ["freetoken", "ollama"].includes(model.llm?.provider ?? ""),
+    },
     speech: {
       ...settings,
       sttKeySaved: !!secrets.sttKey,
@@ -158,6 +162,45 @@ voiceApi.put("/settings", requireRole("admin"), async (c) => {
   );
   await audit(c.get("org").id, c.get("user").id, "voice.settings.updated");
   return c.json({ ok: true });
+});
+/** What can work right now, checked live so the desk never promises a stopped engine. */
+voiceApi.get("/readiness", async (c) => {
+  const orgId = c.get("org").id;
+  const { settings, secrets } = await speechConfig(orgId);
+  const model = await llmForOrg(orgId);
+  const modelCheck = async () => {
+    if (!model.llm)
+      return { ok: false, detail: "No AI model. Replies quote source sentences." };
+    if (!model.llm.ping) return { ok: true, detail: `${model.llm.provider} configured` };
+    const up = await model.llm.ping().catch(() => false);
+    return {
+      ok: up,
+      detail: up
+        ? `${model.llm.provider} responding`
+        : `${model.llm.provider} is not responding. Replies quote source sentences.`,
+    };
+  };
+  const studioCheck = async () => {
+    if (settings.ttsProvider !== "voicestudio" && !settings.voicestudioUrl && !process.env.VOICESTUDIO_URL)
+      return null;
+    const status = await voiceStudioStatus(settings, secrets).catch((e) => ({
+      state: "error",
+      message: (e as Error).message,
+    }));
+    return { ok: status.state === "connected", detail: status.message };
+  };
+  const [modelStatus, studio] = await Promise.all([modelCheck(), studioCheck()]);
+  return c.json({
+    db: { ok: true, detail: ctx.db.kind },
+    model: modelStatus,
+    transcription: transcriptionAvailable(settings)
+      ? (studio ?? { ok: true, detail: "Transcription service configured" })
+      : { ok: false, detail: "No transcription service" },
+    cloning:
+      settings.ttsProvider === "none"
+        ? { ok: false, detail: "No cloning engine" }
+        : (studio ?? { ok: true, detail: `${settings.ttsProvider} configured` }),
+  });
 });
 voiceApi.get("/voicestudio/status", requireRole("admin"), async (c) => {
   if (!rateLimit(`voicestudio-status:${c.get("org").id}`, 20, 60000).ok)
