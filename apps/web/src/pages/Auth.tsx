@@ -75,9 +75,16 @@ export function Signup({ inviteToken, inviteInfo }: { inviteToken?: string; invi
   const voice = useProduct() === 'voice';
   const nav = useNavigate();
   const { refresh } = useSession();
-  const [form, setForm] = useState({ name: '', email: inviteInfo?.email ?? '', password: '', orgName: '' });
+  const [form, setForm] = useState({ name: '', email: inviteInfo?.email ?? '', password: '', orgName: '', accessCode: '' });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [codeRequired, setCodeRequired] = useState(false);
+  useEffect(() => {
+    void fetch('/api/public/config')
+      .then((r) => r.json())
+      .then((c) => setCodeRequired(!!c.signupCodeRequired))
+      .catch(() => {});
+  }, []);
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e: FormEvent) => {
@@ -116,6 +123,11 @@ export function Signup({ inviteToken, inviteInfo }: { inviteToken?: string; invi
         {!inviteInfo && (
           <Field label="Business name">
             <input className="input" value={form.orgName} onChange={set('orgName')} placeholder="e.g. Sri Lakshmi Clinic" />
+          </Field>
+        )}
+        {!inviteInfo && codeRequired && (
+          <Field label="Access code" hint="This pilot is invite-only.">
+            <input className="input" value={form.accessCode} onChange={set('accessCode')} required autoComplete="off" />
           </Field>
         )}
         <button className="btn primary lg" disabled={busy}>{busy ? 'Creating…' : inviteInfo ? 'Join workspace' : 'Create workspace'}</button>

@@ -48,7 +48,7 @@ export function buildApp() {
   });
 
   app.get('/api/public/config', async (c) =>
-    c.json({ demoSiteKey: await demoSiteKey(), allowSignup: config.allowSignup, mode: config.mode, demoDashboard: config.demo.seed, product: config.product }),
+    c.json({ demoSiteKey: await demoSiteKey(), allowSignup: config.allowSignup, signupCodeRequired: !!config.signupCode, mode: config.mode, demoDashboard: config.demo.seed, product: config.product }),
   );
 
   app.route('/api/voice', voiceApi);

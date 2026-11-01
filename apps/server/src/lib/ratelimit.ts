@@ -1,6 +1,11 @@
 /** Fixed-window in-memory rate limiter (swap for Valkey/@upstash/ratelimit when running multiple nodes). */
 const windows = new Map<string, { count: number; reset: number }>();
 
+/** Lets a test make more requests than one window allows. */
+export function clearRateLimits() {
+  windows.clear();
+}
+
 export function rateLimit(key: string, limit: number, windowMs: number, consume = true): { ok: boolean; retryAfter: number } {
   const now = Date.now();
   let w = windows.get(key);

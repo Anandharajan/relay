@@ -72,7 +72,7 @@ Each reply shows an agent board reusing the Live desk's `RunBoard`:
 | Planner | With a model, chooses search queries and which documents to read, using up to three of your earlier approved answers for this client to resolve follow-ups. Asks you one clarifying question if the request cannot be understood. |
 | Researcher | Searches only this client's ready documents |
 | Writer | Drafts with citations, or picks the relevant sentences in extractive mode |
-| Verifier | Checks every sentence against the passage it cites: citation exists, numbers match, words overlap. A failing draft gets one rewrite, then falls back to source sentences for human review. |
+| Verifier | Checks every sentence against the passage it cites (citation exists, numbers match, words overlap), checks the reply mentions the question's topic, then with a model asks a separate reviewer whether it addresses the question. A failing draft gets one rewrite, then falls back to source sentences for human review. |
 | Voice | Generates speech after removing citations and formatting, which stay on screen |
 
 The Verifier is a deterministic check, not a guarantee of correctness: it catches invented numbers and unsupported claims, not every misreading. Replies in a different script from the source are only checked on numbers and citations.
@@ -85,7 +85,7 @@ This is still a request-and-review flow rather than a hands-free conversation, a
 
 - Create client spaces for students, patients, employees, customers or general clients. Staff in the same workspace share client files; personal voices and generated replies belong to their creator. This is workspace-level collaboration, not a patient-facing record portal or per-client ACL system.
 - Upload PDF, DOCX, TXT, Markdown, CSV or JSON (20 MB; at most 50 files per client; up to 500,000 extracted characters per document). Passages are indexed locally with 384-dimensional hash embeddings and pgvector. Retrieval selects at most seven relevant passages, so summaries are **not exhaustive document audits**. OCR, images, spreadsheets, legacy `.doc`, and arbitrary binary formats are not supported.
-- Record up to 90 seconds in the browser, upload up to 12 MB, or type up to 6,000 characters. Provider limits and costs also apply. A reply with a model makes up to three model calls.
+- Record up to 90 seconds in the browser, upload up to 12 MB, or type up to 6,000 characters. Provider limits and costs also apply. A reply with a model makes up to five model calls.
 - Queue workers retry transient failures up to three times. Failures that cannot clear by themselves, such as a missing key or a rejected request, stop immediately.
 - Healthcare, HR, advisory, missing-source, partly searched, unverified and client-reply drafts require human approval. The app does not diagnose, prescribe, make employment/eligibility decisions, or send replies externally.
 - Revoke a voice to erase its local reference and generated audio and block further use. The app attempts upstream profile deletion; if that fails, it tells you to remove the profile in the provider console. Revocation cannot recall previously downloaded copies.
@@ -104,6 +104,8 @@ Authentication reuses scrypt password hashes, signed HttpOnly session cookies, C
 PWA installation caches the application shell, not private API responses or audio. True air-gapped operation requires local reasoning, transcription and cloning engines.
 
 ## Deployment and verification
+
+To run on one GPU PC with no BYOK, using FreeToken and VoiceStudio, see `VOICE_PILOT.md`.
 
 `render.yaml` is the hospital site and is unaffected by Voice. To deploy Voice, create a second Render Blueprint with its path set to `deploy/render.voice.yaml` and its own database. Set `PUBLIC_URL` to the deployed HTTPS origin. Production refuses to start with the development secret.
 

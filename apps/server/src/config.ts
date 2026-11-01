@@ -31,6 +31,10 @@ export const config = {
     baseUrl: env.LLM_BASE_URL ?? '',
     apiKey: env.LLM_API_KEY ?? '',
   },
+  /** Per-call limit. Local models on one GPU can need longer than hosted ones. */
+  llmTimeoutMs: Number(env.LLM_TIMEOUT_MS ?? 60_000),
+  /** When set, a new account needs this code unless it arrives on a workspace invite. */
+  signupCode: env.SIGNUP_INVITE_CODE ?? '',
   embed: {
     /** hash (built-in, offline) | openai-compatible (Ollama, OpenAI, LiteLLM, ...) */
     provider: env.EMBED_PROVIDER ?? 'hash',

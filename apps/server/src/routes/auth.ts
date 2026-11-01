@@ -35,6 +35,7 @@ auth.post('/signup', async (c) => {
       name: z.string().min(1).max(100),
       orgName: z.string().max(100).optional(),
       inviteToken: z.string().optional(),
+      accessCode: z.string().max(200).optional(),
     }),
   );
   const email = b.email.toLowerCase().trim();
@@ -43,6 +44,7 @@ auth.post('/signup', async (c) => {
     : undefined;
   if (b.inviteToken && !invite) fail(400, 'Invite link is invalid or already used');
   if (!config.allowSignup && !invite) fail(403, 'Sign-ups are closed on this server');
+  if (config.signupCode && !invite && b.accessCode?.trim() !== config.signupCode) fail(403, 'That access code is not valid');
   if (await ctx.db.one('select 1 from users where email = $1', [email])) fail(409, 'An account with this email already exists');
 
   const userId = uuid();
