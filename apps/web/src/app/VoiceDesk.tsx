@@ -70,6 +70,7 @@ type Bootstrap = {
   runs: Run[];
   professions: Record<string, string>;
   tasks: Record<string, string>;
+  reasoning: { connected: boolean; provider: string | null };
   speech: Speech;
 };
 type Doc = {
@@ -274,6 +275,29 @@ export function VoiceDesk() {
           </Link>
         </div>
       </header>
+      <ul className="vd-capabilities" aria-label="What is active in this workspace">
+        <li className={data.reasoning.connected ? "on" : "off"}>
+          {data.reasoning.connected
+            ? `Written answers: ${data.reasoning.provider}`
+            : "Written answers: off. Replies quote source sentences until an AI model is connected"}
+        </li>
+        <li className={data.speech.transcriptionAvailable ? "on" : "off"}>
+          {data.speech.transcriptionAvailable
+            ? "Spoken questions: on"
+            : "Spoken questions: off. Type your question, or connect transcription"}
+        </li>
+        <li
+          className={
+            data.voices.some((v) => !v.revoked_at) ? "on" : "off"
+          }
+        >
+          {data.voices.some((v) => !v.revoked_at)
+            ? "Cloned replies: on"
+            : data.speech.ttsProvider === "none"
+              ? "Cloned replies: off. Connect a cloning engine"
+              : "Cloned replies: off. Enroll your voice"}
+        </li>
+      </ul>
       {(notice || error) && (
         <div className="vd-alert" role="alert">
           {notice || error}
@@ -465,7 +489,7 @@ export function VoiceDesk() {
           <Recorder
             onFile={setFile}
             onError={setNotice}
-            disabled={readOnly || busy}
+            disabled={readOnly || busy || !data.speech.transcriptionAvailable}
           />
           <div className="vd-audio-input">
             <label className="vd-text-button">
@@ -473,7 +497,7 @@ export function VoiceDesk() {
               <input
                 type="file"
                 accept="audio/*"
-                disabled={readOnly}
+                disabled={readOnly || !data.speech.transcriptionAvailable}
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
             </label>

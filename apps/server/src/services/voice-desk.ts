@@ -14,7 +14,7 @@ import { redact, restore } from "../lib/redact.ts";
 import { PermanentError } from "../lib/permanent-error.ts";
 import { speakable } from "../lib/speakable.ts";
 import { chunkDocument, contentTokens, splitSentences } from "../lib/text.ts";
-import { extractiveAnswer } from "../engine/extractive.ts";
+import { extractiveAnswer, overlap, stems } from "../engine/extractive.ts";
 import type { Passage } from "../engine/retrieve.ts";
 export const professions = {
   general: "Professional assistant",
@@ -33,16 +33,44 @@ export const tasks = {
 export function voiceChanged(orgId: string) {
   publish(`org:${orgId}`, "voice.updated", {});
 }
-/** Sentence-aware chunks, each repeating the previous chunk's last sentence so facts keep their context. */
-export function chunkVoiceDocument(text: string) {
-  const chunks = chunkDocument(text, { maxChars: 1200 }).flatMap(
-    (c) => c.content.match(/[\s\S]{1,1500}/g) ?? [],
+/** Markdown headings plus the short all-caps or Title Case lines that plain-text documents use. */
+function isHeading(line: string) {
+  const text = line.trim();
+  if (/^#{1,4}\s+\S/.test(text)) return true;
+  if (!text || text.length > 80 || /[.!?:;,]$/.test(text) || !/\p{L}/u.test(text))
+    return false;
+  if (text === text.toUpperCase()) return true;
+  const words = text.split(/\s+/);
+  return (
+    words.length <= 6 &&
+    words.every((w) => /^(\p{Lu}|[-&/\d]|(of|and|the|for|to|in|on)$)/u.test(w))
   );
-  return chunks.map((chunk, i) => {
-    const carried = i ? splitSentences(chunks[i - 1]!).at(-1)! : "";
-    return carried && carried.length < 300 && !chunk.startsWith(carried)
-      ? `${carried}\n${chunk}`
-      : chunk;
+}
+/**
+ * Sentence-aware chunks split at headings. Each chunk names its section and repeats the previous
+ * chunk's last sentence from that section, so facts keep their context.
+ */
+export function chunkVoiceDocument(text: string) {
+  const marked = text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => (isHeading(line) ? `## ${line.replace(/^#+\s*/, "").trim()}` : line))
+    .join("\n");
+  const chunks = chunkDocument(marked, { maxChars: 1200 }).flatMap((c) =>
+    (c.content.match(/[\s\S]{1,1500}/g) ?? []).map((content) => ({
+      title: c.title,
+      content,
+    })),
+  );
+  return chunks.map(({ title, content }, i) => {
+    const previous = chunks[i - 1];
+    const carried =
+      previous?.title === title ? splitSentences(previous.content).at(-1)! : "";
+    const body =
+      carried && carried.length < 300 && !content.startsWith(carried)
+        ? `${carried}\n${content}`
+        : content;
+    return title ? `## ${title}\n${body}` : body;
   });
 }
 export async function processVoiceDocument({
@@ -338,21 +366,103 @@ function toPassage(s: Source): Passage {
     score: Number(s.score),
   };
 }
-/** Without a model, pick the sentences that answer the question instead of reading whole passages. */
-export function extractiveDraft(question: string, task: string, sources: Source[]) {
-  const passages = sources.map(toPassage);
-  if (task === "answer" || task === "reply") {
-    const found = extractiveAnswer(question, passages);
-    return found.answer ? `${found.answer} [${found.cited[0]! + 1}]` : "";
-  }
-  const lines = passages.slice(0, 3).flatMap((p, i) => {
-    const found = extractiveAnswer(question, [p]).answer;
-    const text = found || splitSentences(p.content).slice(0, 2).join(" ");
-    return text ? [`${text} [${i + 1}]`] : [];
+interface SectionSentence {
+  text: string;
+  n: number;
+}
+/** Groups passages by heading, dropping sentences repeated by chunk overlap. */
+function sectionsOf(sources: Source[]) {
+  const sections = new Map<string, SectionSentence[]>();
+  const seen = new Set<string>();
+  sources.forEach((source, i) => {
+    let heading = "";
+    for (const line of source.content.split("\n")) {
+      if (isHeading(line)) {
+        heading = line.replace(/^#+\s*/, "").trim();
+        continue;
+      }
+      for (const text of splitSentences(line)) {
+        const key = text.toLowerCase();
+        if (text.length < 12 || seen.has(key)) continue;
+        seen.add(key);
+        const section = sections.get(heading) ?? [];
+        section.push({ text, n: i + 1 });
+        sections.set(heading, section);
+      }
+    }
   });
-  return task === "checklist"
-    ? lines.map((l) => `- ${l}`).join("\n")
-    : lines.join(" ");
+  return [...sections].map(([heading, sentences]) => ({ heading, sentences }));
+}
+function clockMinutes(text: string) {
+  const m = text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+  if (!m) return Infinity;
+  return (
+    ((Number(m[1]) % 12) + (m[3]!.toLowerCase() === "pm" ? 12 : 0)) * 60 +
+    Number(m[2] ?? 0)
+  );
+}
+const cited = (sentences: SectionSentence[]) =>
+  sentences
+    .map((s, i) =>
+      sentences[i + 1]?.n === s.n ? s.text : `${s.text} [${s.n}]`,
+    )
+    .join(" ");
+/** Without a model, assemble the reply from whole source sentences, always cited. */
+export function extractiveDraft(question: string, task: string, sources: Source[]) {
+  if (sources.some((s) => /^\s*(Q|Question)\s*[:.]/im.test(s.content))) {
+    const found = extractiveAnswer(question, sources.map(toPassage));
+    if (found.answer) return `${found.answer} [${found.cited[0]! + 1}]`;
+  }
+  const q = stems(question);
+  // A prohibition rarely answers a factual question, unless the question is about what is allowed.
+  const askingLimits = /\b(can|may|should|allowed|must)\b/i.test(question);
+  const weight = (text: string) =>
+    !askingLimits && /^(do not|don.t|never)\b/i.test(text) ? 0.5 : 1;
+  const scored = sectionsOf(sources).map((section) => {
+    const label = stems(section.heading);
+    const best = Math.max(
+      ...section.sentences.map(
+        (s) => weight(s.text) * overlap(q, new Set([...label, ...stems(s.text)])),
+      ),
+    );
+    return { ...section, best, heading_match: overlap(q, label) };
+  });
+  if (task === "answer" || task === "reply") {
+    const top = [...scored].sort((a, b) => b.best - a.best)[0];
+    if (!top || top.best < 0.2) return "";
+    // Stay in the best section, so a sentence sharing one word elsewhere cannot leak in.
+    const ranked = top.sentences
+      .map((s, i) => ({ s, i, score: weight(s.text) * overlap(q, stems(s.text)) }))
+      .filter((r) => r.score > 0)
+      .sort((a, b) => b.score - a.score || a.i - b.i)
+      .slice(0, 3)
+      .sort((a, b) => a.i - b.i)
+      .map((r) => r.s);
+    return cited(ranked.length ? ranked : top.sentences.slice(0, 1));
+  }
+  if (task === "checklist") {
+    // A checklist needs every step of the matching sections, not the single best sentence.
+    const topHeading = Math.max(0, ...scored.map((s) => s.heading_match));
+    const chosen = topHeading
+      ? scored.filter((s) => s.heading_match >= topHeading * 0.8)
+      : scored.filter((s) => s.best >= 0.2);
+    return chosen
+      .map((section) => {
+        const steps = section.sentences
+          .map((s, i) => ({ s, i, at: clockMinutes(s.text) }))
+          .sort((a, b) => a.at - b.at || a.i - b.i)
+          .map(({ s }) => `- ${s.text} [${s.n}]`);
+        return [section.heading && `${section.heading}:`, ...steps]
+          .filter(Boolean)
+          .join("\n");
+      })
+      .join("\n\n");
+  }
+  return scored
+    .sort((a, b) => b.best - a.best)
+    .slice(0, 3)
+    .map((section) => cited(section.sentences.slice(0, 2)))
+    .join(" ");
 }
 function usage(
   orgId: string,
