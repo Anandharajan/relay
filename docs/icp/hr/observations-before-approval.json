@@ -1,0 +1,265 @@
+{
+  "type": "SIMULATED HR usability walkthrough - no real participant",
+  "observedAt": "2026-11-01T05:22:33.572Z",
+  "appUrl": "http://localhost:8788",
+  "model": {
+    "provider": "default",
+    "platformDefault": "Extractive (no LLM)"
+  },
+  "speech": {
+    "ttsProvider": "none",
+    "transcriptionAvailable": false,
+    "operatorEndpointConfigured": false,
+    "sttKeySaved": false,
+    "ttsKeySaved": false,
+    "enrolledVoiceCount": 0
+  },
+  "clients": [
+    {
+      "name": "Northstar staff — sample",
+      "kind": "employee"
+    }
+  ],
+  "runs": [
+    {
+      "id": "b2035fbc-0a78-4158-baf6-1990c18888ce",
+      "task": "answer",
+      "profession": "hr",
+      "question": "What relocation reimbursement amount will a new hire receive?",
+      "status": "review",
+      "answer": "This policy does not define relocation reimbursement. Do not invent eligibility, exceptions, approval or reimbursement amounts. [1]",
+      "error": null,
+      "citations": [
+        {
+          "n": 1,
+          "title": "sample-handbook.txt",
+          "excerpt": "The new employee completes the security training by the end of day one.\nREMOTE WORK\nEmployees may request up to 2 remote-work days per week, subject to reporting-manager approval. Customer-facing coverage must be maintained. Requests go through PeoplePortal before the start of the work week.\n\nEXPENSES\nSubmit routine business expenses through ExpenseDesk within 30 calendar days of the expense. Attach the receipt and business purpose. The finance team reviews complete claims within 7 working days. This policy does not define relocation reimbursement.\n\nESCALATION\nIf a question concerns a policy not in this handbook, ask the HR policy owner. Do not invent eligibility, exceptions, approval or reimbursement amounts.",
+          "documentId": "2118a3d4-a6c5-497d-841e-9385b5477237"
+        },
+        {
+          "n": 2,
+          "title": "sample-handbook.txt",
+          "excerpt": "FICTIONAL TEST DATA - NORTHSTAR SERVICES - HR HANDBOOK\nVersion: 1 November 2026. For product testing only; not legal or HR advice.\n\nANNUAL LEAVE\nFull-time employees receive 18 paid annual leave days per calendar year. Submit requests in PeoplePortal at least 5 working days before the leave begins. The reporting manager approves requests. No more than 5 unused days may carry forward, and carried days expire on 31 March. Sick leave is a separate policy and is not specified in this document.\n\nONBOARDING - BEFORE DAY ONE\nThe HR coordinator sends the welcome email and requests the signed employment agreement 3 working days before the start date. IT prepares the laptop and company account before the start date. Do not collect identity documents through chat; use the approved secure onboarding portal.\n\nONBOARDING - DAY ONE\nAt 9:30 AM the HR coordinator hosts the welcome orientation. At 10:30 AM IT leads account setup. At 2:00 PM the reporting manager explains the role, first-week goals and the buddy assignment. The new employee completes the security training by the end of day one.",
+          "documentId": "2118a3d4-a6c5-497d-841e-9385b5477237"
+        }
+      ],
+      "steps": [
+        {
+          "id": "listen",
+          "role": "Transcriber",
+          "stage": 0,
+          "action": "Turning your recording into text",
+          "result": "Typed question; nothing to transcribe.",
+          "status": "skipped"
+        },
+        {
+          "id": "plan",
+          "ms": 76,
+          "role": "Planner",
+          "stage": 1,
+          "action": "Deciding what to read and whether anything is unclear",
+          "result": "1 search across 1 of 1 ready document.",
+          "status": "done",
+          "startedAt": 1793510522936
+        },
+        {
+          "id": "research",
+          "ms": 80,
+          "role": "Researcher",
+          "stage": 2,
+          "action": "Searching only this client’s documents",
+          "result": "2 relevant passages from 1 document(s).",
+          "status": "done",
+          "startedAt": 1793510523055
+        },
+        {
+          "id": "write",
+          "ms": 56,
+          "role": "Writer",
+          "stage": 3,
+          "action": "Picking the sentences that answer the question",
+          "result": "Extractive mode: sentences selected, no AI rewrite.",
+          "status": "done",
+          "startedAt": 1793510523165
+        },
+        {
+          "id": "verify",
+          "role": "Verifier",
+          "stage": 4,
+          "action": "Checking every claim against its source",
+          "result": "Reply is quoted directly from the sources.",
+          "status": "done"
+        },
+        {
+          "id": "speak",
+          "role": "Voice",
+          "stage": 5,
+          "action": "Generating speech in your authorized voice",
+          "status": "waiting"
+        }
+      ],
+      "approvedAt": null,
+      "outputMime": null
+    },
+    {
+      "id": "8f864cd5-acf4-435a-91fb-593533e3d357",
+      "task": "checklist",
+      "profession": "hr",
+      "question": "Prepare a first-day onboarding checklist for a new employee, ordered by time, with who is responsible for each step.",
+      "status": "review",
+      "answer": "- ONBOARDING - BEFORE DAY ONE ONBOARDING - DAY ONE The new employee completes the security training by the end of day one. [1]\n- The new employee completes the security training by the end of day one. [2]",
+      "error": null,
+      "citations": [
+        {
+          "n": 1,
+          "title": "sample-handbook.txt",
+          "excerpt": "FICTIONAL TEST DATA - NORTHSTAR SERVICES - HR HANDBOOK\nVersion: 1 November 2026. For product testing only; not legal or HR advice.\n\nANNUAL LEAVE\nFull-time employees receive 18 paid annual leave days per calendar year. Submit requests in PeoplePortal at least 5 working days before the leave begins. The reporting manager approves requests. No more than 5 unused days may carry forward, and carried days expire on 31 March. Sick leave is a separate policy and is not specified in this document.\n\nONBOARDING - BEFORE DAY ONE\nThe HR coordinator sends the welcome email and requests the signed employment agreement 3 working days before the start date. IT prepares the laptop and company account before the start date. Do not collect identity documents through chat; use the approved secure onboarding portal.\n\nONBOARDING - DAY ONE\nAt 9:30 AM the HR coordinator hosts the welcome orientation. At 10:30 AM IT leads account setup. At 2:00 PM the reporting manager explains the role, first-week goals and the buddy assignment. The new employee completes the security training by the end of day one.",
+          "documentId": "2118a3d4-a6c5-497d-841e-9385b5477237"
+        },
+        {
+          "n": 2,
+          "title": "sample-handbook.txt",
+          "excerpt": "The new employee completes the security training by the end of day one.\nREMOTE WORK\nEmployees may request up to 2 remote-work days per week, subject to reporting-manager approval. Customer-facing coverage must be maintained. Requests go through PeoplePortal before the start of the work week.\n\nEXPENSES\nSubmit routine business expenses through ExpenseDesk within 30 calendar days of the expense. Attach the receipt and business purpose. The finance team reviews complete claims within 7 working days. This policy does not define relocation reimbursement.\n\nESCALATION\nIf a question concerns a policy not in this handbook, ask the HR policy owner. Do not invent eligibility, exceptions, approval or reimbursement amounts.",
+          "documentId": "2118a3d4-a6c5-497d-841e-9385b5477237"
+        }
+      ],
+      "steps": [
+        {
+          "id": "listen",
+          "role": "Transcriber",
+          "stage": 0,
+          "action": "Turning your recording into text",
+          "result": "Typed question; nothing to transcribe.",
+          "status": "skipped"
+        },
+        {
+          "id": "plan",
+          "ms": 7,
+          "role": "Planner",
+          "stage": 1,
+          "action": "Deciding what to read and whether anything is unclear",
+          "result": "1 search across 1 of 1 ready document.",
+          "status": "done",
+          "startedAt": 1793510479686
+        },
+        {
+          "id": "research",
+          "ms": 17,
+          "role": "Researcher",
+          "stage": 2,
+          "action": "Searching only this client’s documents",
+          "result": "2 relevant passages from 1 document(s).",
+          "status": "done",
+          "startedAt": 1793510479695
+        },
+        {
+          "id": "write",
+          "ms": 7,
+          "role": "Writer",
+          "stage": 3,
+          "action": "Picking the sentences that answer the question",
+          "result": "Extractive mode: sentences selected, no AI rewrite.",
+          "status": "done",
+          "startedAt": 1793510479718
+        },
+        {
+          "id": "verify",
+          "role": "Verifier",
+          "stage": 4,
+          "action": "Checking every claim against its source",
+          "result": "Reply is quoted directly from the sources.",
+          "status": "done"
+        },
+        {
+          "id": "speak",
+          "role": "Voice",
+          "stage": 5,
+          "action": "Generating speech in your authorized voice",
+          "status": "waiting"
+        }
+      ],
+      "approvedAt": null,
+      "outputMime": null
+    },
+    {
+      "id": "630c56bf-e705-488b-b281-1a9c683bda91",
+      "task": "answer",
+      "profession": "hr",
+      "question": "How many annual leave days do full-time employees get, and how do they request leave?",
+      "status": "review",
+      "answer": "Full-time employees receive 18 paid annual leave days per calendar year. [1]",
+      "error": null,
+      "citations": [
+        {
+          "n": 1,
+          "title": "sample-handbook.txt",
+          "excerpt": "FICTIONAL TEST DATA - NORTHSTAR SERVICES - HR HANDBOOK\nVersion: 1 November 2026. For product testing only; not legal or HR advice.\n\nANNUAL LEAVE\nFull-time employees receive 18 paid annual leave days per calendar year. Submit requests in PeoplePortal at least 5 working days before the leave begins. The reporting manager approves requests. No more than 5 unused days may carry forward, and carried days expire on 31 March. Sick leave is a separate policy and is not specified in this document.\n\nONBOARDING - BEFORE DAY ONE\nThe HR coordinator sends the welcome email and requests the signed employment agreement 3 working days before the start date. IT prepares the laptop and company account before the start date. Do not collect identity documents through chat; use the approved secure onboarding portal.\n\nONBOARDING - DAY ONE\nAt 9:30 AM the HR coordinator hosts the welcome orientation. At 10:30 AM IT leads account setup. At 2:00 PM the reporting manager explains the role, first-week goals and the buddy assignment. The new employee completes the security training by the end of day one.",
+          "documentId": "2118a3d4-a6c5-497d-841e-9385b5477237"
+        },
+        {
+          "n": 2,
+          "title": "sample-handbook.txt",
+          "excerpt": "The new employee completes the security training by the end of day one.\nREMOTE WORK\nEmployees may request up to 2 remote-work days per week, subject to reporting-manager approval. Customer-facing coverage must be maintained. Requests go through PeoplePortal before the start of the work week.\n\nEXPENSES\nSubmit routine business expenses through ExpenseDesk within 30 calendar days of the expense. Attach the receipt and business purpose. The finance team reviews complete claims within 7 working days. This policy does not define relocation reimbursement.\n\nESCALATION\nIf a question concerns a policy not in this handbook, ask the HR policy owner. Do not invent eligibility, exceptions, approval or reimbursement amounts.",
+          "documentId": "2118a3d4-a6c5-497d-841e-9385b5477237"
+        }
+      ],
+      "steps": [
+        {
+          "id": "listen",
+          "role": "Transcriber",
+          "stage": 0,
+          "action": "Turning your recording into text",
+          "result": "Typed question; nothing to transcribe.",
+          "status": "skipped"
+        },
+        {
+          "id": "plan",
+          "ms": 58,
+          "role": "Planner",
+          "stage": 1,
+          "action": "Deciding what to read and whether anything is unclear",
+          "result": "1 search across 1 of 1 ready document.",
+          "status": "done",
+          "startedAt": 1793510413454
+        },
+        {
+          "id": "research",
+          "ms": 173,
+          "role": "Researcher",
+          "stage": 2,
+          "action": "Searching only this client’s documents",
+          "result": "2 relevant passages from 1 document(s).",
+          "status": "done",
+          "startedAt": 1793510413541
+        },
+        {
+          "id": "write",
+          "ms": 99,
+          "role": "Writer",
+          "stage": 3,
+          "action": "Picking the sentences that answer the question",
+          "result": "Extractive mode: sentences selected, no AI rewrite.",
+          "status": "done",
+          "startedAt": 1793510413739
+        },
+        {
+          "id": "verify",
+          "role": "Verifier",
+          "stage": 4,
+          "action": "Checking every claim against its source",
+          "result": "Reply is quoted directly from the sources.",
+          "status": "done"
+        },
+        {
+          "id": "speak",
+          "role": "Voice",
+          "stage": 5,
+          "action": "Generating speech in your authorized voice",
+          "status": "waiting"
+        }
+      ],
+      "approvedAt": null,
+      "outputMime": null
+    }
+  ]
+}
