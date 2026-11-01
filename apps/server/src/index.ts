@@ -1,4 +1,4 @@
-import { processVoiceDocument, processVoiceRun, renderVoiceRun } from './services/voice-desk.ts';
+import { processVoiceDocument, processVoiceRun, renderVoiceRun } from './services/voice/index.ts';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { config } from './config.ts';

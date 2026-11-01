@@ -1,4 +1,5 @@
-import { VoiceDesk, VoiceLanding } from './app/VoiceDesk';
+import { VoiceDesk } from './app/voice/VoiceDesk';
+import { VoiceLanding } from './app/voice/VoiceLanding';
 import { Desk } from './app/Desk';
 import { DoctorTour, PatientTour } from './tour/Tour';
 import { Navigate, Route, Routes } from 'react-router-dom';

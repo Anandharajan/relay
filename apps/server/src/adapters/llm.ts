@@ -35,7 +35,7 @@ export class LlmRefusal extends Error {}
 const openAiCompatible: Record<string, { baseUrl: string; model: string }> = {
   openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
   gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash' },
-  groq: { baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
+  groq: { baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b' },
   openrouter: { baseUrl: 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' },
   ollama: { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5:7b' },
   freetoken: { baseUrl: 'http://localhost:1919/v1', model: 'default' },
@@ -108,6 +108,16 @@ function anthropicLlm(model: string, apiKey: string, baseUrl?: string | null): L
   };
 }
 
+const maxRateLimitWaitMs = 12000;
+
+/** How long a rate-limited provider asks us to wait, from its header or its message; null if it does not say. */
+export function retryWaitMs(header: string | null, message: string): number | null {
+  if (header && Number.isFinite(Number(header))) return Number(header) * 1000;
+  const hint = message.match(/try again in ([\d.]+)(ms|s)\b/i);
+  if (!hint) return null;
+  return Number(hint[1]) * (hint[2] === 'ms' ? 1 : 1000);
+}
+
 function openAiLlm(provider: string, model: string, baseUrl: string, apiKey?: string | null): Llm {
   return {
     provider,
@@ -120,17 +130,28 @@ function openAiLlm(provider: string, model: string, baseUrl: string, apiKey?: st
       return res.ok;
     },
     async complete(system, turns, opts) {
-      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
-        body: JSON.stringify({
-          model,
-          max_tokens: opts?.maxTokens ?? 1200,
-          temperature: 0.2,
-          messages: [{ role: 'system', content: system }, ...turns],
-        }),
-        signal: AbortSignal.timeout(config.llmTimeoutMs),
-      });
+      const send = () =>
+        fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
+          body: JSON.stringify({
+            model,
+            max_tokens: opts?.maxTokens ?? 1200,
+            temperature: 0.2,
+            // Thinking counts against max_tokens on these models, and could leave no room for the reply.
+            ...(/gpt-oss/.test(model) ? { reasoning_effort: 'low' } : {}),
+            messages: [{ role: 'system', content: system }, ...turns],
+          }),
+          signal: AbortSignal.timeout(config.llmTimeoutMs),
+        });
+      let res = await send();
+      // A free tier's per-minute limit usually clears in seconds; a longer wait is not worth holding a reply for.
+      for (let tries = 0; res.status === 429 && tries < 2; tries++) {
+        const wait = retryWaitMs(res.headers.get('retry-after'), await res.clone().text());
+        if (wait === null || wait > maxRateLimitWaitMs) break;
+        await new Promise((resolve) => setTimeout(resolve, wait + 250));
+        res = await send();
+      }
       if (!res.ok) throw new Error(`${provider} error ${res.status}: ${(await res.text()).slice(0, 300)}`);
       const data = (await res.json()) as any;
       const text: string = data.choices?.[0]?.message?.content ?? '';

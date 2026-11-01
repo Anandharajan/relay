@@ -24,7 +24,7 @@ import {
   voiceStudioStatus,
   widgetVoiceAvailable,
 } from "../adapters/speech.ts";
-import { professions, tasks, voiceChanged } from "../services/voice-desk.ts";
+import { notFoundReply, professions, tasks, voiceChanged } from "../services/voice/index.ts";
 import {
   challengeTtlMinutes,
   consentVersion,
@@ -528,6 +528,8 @@ voiceApi.post("/runs/:id/approve", requireRole("agent"), async (c) => {
     c,
     z.object({ answer: z.string().trim().min(1).max(4000) }),
   );
+  if (answer === notFoundReply)
+    fail(409, "There is no answer to approve. Add a document and ask again.");
   const id = await ctx.db.tx(async (db) => {
     const rows = await db.query(
       "update voice_runs set answer=$4,approved_at=now(),status='queued_audio',error=null where id=$1 and org_id=$2 and user_id=$3 and status in ('review','audio_failed','ready_text') returning id",
