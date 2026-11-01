@@ -6,8 +6,13 @@ import { useSession } from '../lib/session';
 import { Loading } from '../components/ui';
 import { NotificationBell } from '../components/Notifications';
 import { ChatDock } from '../components/ChatDock';
+import { useProduct, type Product } from '../lib/product';
 
-const navFor = (T: ReturnType<typeof terms>) => [
+const navFor = (T: ReturnType<typeof terms>, product: Product | null) => product === 'voice' ? [
+  { to: '/app', label: 'Voice desk', icon: '🎙', end: true },
+  { to: '/app/inbox', label: 'Team inbox', icon: '📥', count: true },
+  { to: '/app/settings', label: 'Workspace settings', icon: '⚙️' },
+] : [
   { to: '/app', label: 'Agents', icon: '✨', end: true },
   ...(T.healthcare ? [{ to: '/app/desk', label: 'Live desk', icon: '🩺' }] : []),
   { to: '/app/inbox', label: 'Inbox', icon: '📥', count: true },
@@ -15,7 +20,10 @@ const navFor = (T: ReturnType<typeof terms>) => [
   { to: '/app/clients', label: T.clients, icon: T.healthcare ? '🧑‍⚕️' : '👥' },
   ...(T.healthcare ? [{ to: '/app/approvals', label: 'Approvals', icon: '✅' }] : []),
 ];
-const moreNav = [
+const moreNavFor = (product: Product | null) => [
+  ...(product === 'voice'
+    ? [{ to: '/app/agents', label: 'Support agents', icon: '✨' }, { to: '/app/visits', label: 'Appointments', icon: '🗓️' }]
+    : [{ to: '/app/voice', label: 'Voice desk', icon: '🎙' }]),
   { to: '/app/knowledge', label: 'Knowledge', icon: '📚' },
   { to: '/app/calls', label: 'Calls', icon: '📞' },
   { to: '/app/analytics', label: 'Analytics', icon: '📈' },
@@ -26,6 +34,8 @@ const moreNav = [
 
 export function Layout() {
   const { me, loading, refresh } = useSession();
+  const product = useProduct();
+  const moreNav = moreNavFor(product);
   const navigate = useNavigate();
   const location = useLocation();
   const [attention, setAttention] = useState(0);
@@ -104,7 +114,7 @@ export function Layout() {
           <div className="small muted" style={{ padding: '0 10px 8px' }}>{me.org.name}</div>
         )}
         <nav className="nav stack" style={{ gap: 2 }}>
-          {navFor(terms(me)).map((n: any) => (
+          {navFor(terms(me), product).map((n: any) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
               <span>{n.icon}</span> {n.label}
               {n.count && attention > 0 && <span className="count">{attention}</span>}

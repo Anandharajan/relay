@@ -1,0 +1,37 @@
+# Relay Voice as its own Render service. It never touches the hospital site in ../render.yaml.
+# New > Blueprint > pick this repo > set "Blueprint Path" to deploy/render.voice.yaml.
+# Use its own DATABASE_URL: voice clients must not share a database with the demo.
+services:
+  - type: web
+    name: relay-voice
+    runtime: docker
+    dockerfilePath: ./deploy/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    envVars:
+      - key: RELAY_SECRET
+        generateValue: true
+      - key: RELAY_MODE
+        value: selfhost
+      - key: RELAY_PRODUCT
+        value: voice
+      - key: PUBLIC_URL
+        sync: false        # set to https://<your-service>.onrender.com after first deploy
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_CA_CERT_FILE
+        value: /etc/secrets/aiven-ca.pem
+      - key: LLM_PROVIDER
+        value: extractive
+      - key: DEMO_SEED
+        value: "false"
+      - key: PLATFORM_ADMIN_EMAILS
+        sync: false
+      - key: VOICESTUDIO_URL
+        sync: false        # optional operator-hosted VoiceStudio; leave unset for ElevenLabs BYOK
+      - key: VOICESTUDIO_API_KEY
+        sync: false
+      - key: SPEECH_STT_ALLOWED_HOSTS
+        sync: false        # extra speech hosts workspaces may use, comma-separated

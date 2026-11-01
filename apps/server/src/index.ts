@@ -1,3 +1,4 @@
+import { processVoiceDocument, processVoiceRun, renderVoiceRun } from './services/voice-desk.ts';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { config } from './config.ts';
@@ -17,7 +18,7 @@ import { placeCall } from './services/calls.ts';
 
 if (config.usingDevSecret) {
   const msg = 'RELAY_SECRET is not set: using an insecure development secret.';
-  if (config.mode === 'cloud') throw new Error(msg);
+  if (config.mode === 'cloud' || process.env.NODE_ENV === 'production') throw new Error(msg);
   console.warn(`⚠️  ${msg} Set it before deploying.`);
 }
 
@@ -28,6 +29,9 @@ if (ctx.db.kind === 'pglite' && config.role !== 'all') {
 }
 await initBus(ctx.db);
 
+registerJob('voice_document', processVoiceDocument);
+registerJob('voice_process', processVoiceRun);
+registerJob('voice_render', renderVoiceRun);
 registerJob('ingest', ingestSource);
 registerJob('simulate', runSimulation);
 registerJob('auto_resolve', autoResolveIdle);

@@ -1,3 +1,4 @@
+import { useProduct } from '../lib/product';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -20,6 +21,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [demoDashboard, setDemoDashboard] = useState(false);
+  const voice = useProduct() === 'voice';
 
   useEffect(() => {
     api('/api/public/config').then((c) => setDemoDashboard(Boolean(c.demoDashboard)), () => {});
@@ -46,7 +48,7 @@ export function Login() {
         <Brand />
         <div>
           <h1>Welcome back</h1>
-          <p className="muted">Sign in to your support inbox.</p>
+          <p className="muted">Sign in to your {voice ? 'voice workspace' : 'support inbox'}.</p>
         </div>
         <ErrorBox error={error} />
         <Field label="Email">
@@ -70,6 +72,7 @@ export function Login() {
 }
 
 export function Signup({ inviteToken, inviteInfo }: { inviteToken?: string; inviteInfo?: { email: string; org_name: string } }) {
+  const voice = useProduct() === 'voice';
   const nav = useNavigate();
   const { refresh } = useSession();
   const [form, setForm] = useState({ name: '', email: inviteInfo?.email ?? '', password: '', orgName: '' });
@@ -98,7 +101,7 @@ export function Signup({ inviteToken, inviteInfo }: { inviteToken?: string; invi
         <Brand />
         <div>
           <h1>{inviteInfo ? `Join ${inviteInfo.org_name}` : 'Create your workspace'}</h1>
-          <p className="muted">{inviteInfo ? 'Set up your account to start answering conversations.' : 'Free forever for 100 AI conversations a month — no card needed.'}</p>
+          <p className="muted">{inviteInfo ? 'Set up your account to start answering conversations.' : voice ? 'A private workspace for client files and voice replies. Bring your own AI and speech providers.' : 'Free forever for 100 AI conversations a month — no card needed.'}</p>
         </div>
         <ErrorBox error={error} />
         <Field label="Your name">

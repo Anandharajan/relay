@@ -85,7 +85,7 @@ export function useRunFollower(base: string) {
 }
 
 /** The agent board (stages, agents side by side when parallel) and the report filling in. */
-export function RunBoard({ run, reportTitle }: { run: Run; reportTitle?: string }) {
+export function RunBoard({ run, reportTitle, boardOnly }: { run: Run; reportTitle?: string; boardOnly?: boolean }) {
   const stages = run.stages.map((name, i) => ({ name, agents: run.agents.filter((a) => a.stage === i) }));
   const working = run.agents.filter((a) => a.status === 'working').length;
   const done = run.agents.filter((a) => a.status === 'done').length;
@@ -119,7 +119,7 @@ export function RunBoard({ run, reportTitle }: { run: Run; reportTitle?: string 
             </ol>
           </section>
 
-          <section className="report" aria-live="polite">
+          {!boardOnly && <section className="report" aria-live="polite">
             <header className="row between">
               <strong>{reportTitle ?? (run.kind === 'report' ? 'Doctor report' : run.kind === 'day' ? 'Today’s brief' : 'Result')}</strong>
               {run.status === 'done' && (
@@ -128,7 +128,7 @@ export function RunBoard({ run, reportTitle }: { run: Run; reportTitle?: string 
             </header>
             {!run.report.length && <p className="small muted">The report fills in as agents finish…</p>}
             {run.report.map((s) => <ReportBlock key={s.id} s={s} />)}
-          </section>
+          </section>}
         </div>
   );
 }

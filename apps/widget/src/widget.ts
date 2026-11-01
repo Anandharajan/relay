@@ -13,6 +13,7 @@ interface WidgetConfig {
   greeting: string;
   consentText: string;
   reportUploads?: boolean;
+  voiceInput?: boolean;
 }
 
 interface Citation {
@@ -99,6 +100,7 @@ interface Msg {
       <div class="log" aria-live="polite"></div>
       <div class="error" hidden></div>
       <form class="composer">
+        <button class="voice-mic" type="button" aria-label="Record a voice message" hidden>🎙</button>
         <button class="attach" type="button" aria-label="Attach report" hidden>📎</button>
         <input class="report-file" type="file" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.heic,.webp" hidden />
         <textarea rows="1" placeholder="Type your message…" aria-label="Message" maxlength="2000"></textarea>
@@ -154,7 +156,7 @@ interface Msg {
           : m.role === 'ai' && state.feedbackFor === m.id
             ? '<div class="feedback done">Thanks for the feedback!</div>'
             : '';
-      parts.push(`<div class="msg ${m.role}">${label}<div class="bubble">${format(m.content)}</div>${cites ? `<div class="cites">Sources: ${cites}</div>` : ''}${feedback}</div>`);
+      parts.push(`<div class="msg ${m.role}">${label}<div class="bubble">${format(m.content)}</div>${cites ? `<div class="cites">Sources: ${cites}</div>` : ''}${feedback}${m.role !== 'customer' ? `<button type="button" data-speak="${escapeHtml(m.id)}" aria-label="Read with standard device voice">Listen · device voice</button>` : ''}</div>`);
     }
     if (state.typing) parts.push('<div class="msg ai"><div class="bubble typing"><i></i><i></i><i></i></div></div>');
     log.innerHTML = parts.join('');
@@ -215,6 +217,7 @@ interface Msg {
     state.token = s.token;
     state.cfg = s.config;
     ($('.attach') as HTMLButtonElement).hidden = !state.cfg?.reportUploads;
+    ($('.voice-mic') as HTMLButtonElement).hidden = !state.cfg?.voiceInput;
     save({ token: s.token });
     const conv = await call('/widget/conversation');
     if (conv.conversation) {
@@ -265,6 +268,40 @@ interface Msg {
   };
   launcher.addEventListener('click', () => toggle());
   $('.close').addEventListener('click', () => toggle(false));
+  let mic: MediaRecorder | null = null;
+  let micTimer: ReturnType<typeof setTimeout> | null = null;
+  const micButton = $<HTMLButtonElement>('.voice-mic');
+  micButton.addEventListener('click', async () => {
+    if (mic?.state === 'recording') { mic.stop(); return; }
+    if (!state.token) { state.error = 'Open a chat session before recording.'; render(); return; }
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { state.error = 'Microphone needs HTTPS and a supported browser.'; render(); return; }
+    if (!confirm('Send this recording to the workspace’s configured speech provider to transcribe it? You can review the text before sending.')) return;
+    let stream: MediaStream | undefined;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      const type = ['audio/webm;codecs=opus','audio/mp4'].find(t => MediaRecorder.isTypeSupported(t));
+      mic = new MediaRecorder(stream,type?{mimeType:type}:undefined);
+      const chunks: Blob[] = []; const recorder = mic;
+      recorder.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+      recorder.onerror = () => { stream?.getTracks().forEach(t=>t.stop()); micButton.textContent='🎙'; state.error='Recording failed'; render(); };
+      recorder.onstop = async () => {
+        if (micTimer) clearTimeout(micTimer);
+        stream?.getTracks().forEach(t => t.stop()); micButton.textContent='…'; micButton.disabled=true;
+        try {
+          const form=new FormData();form.set('file',new Blob(chunks,{type:recorder.mimeType}),recorder.mimeType.includes('mp4')?'voice.m4a':'voice.webm');form.set('providerConsent','yes');
+          const response=await fetch(api+'/widget/voice/transcribe',{method:'POST',headers:{authorization:'Bearer '+state.token},body:form});
+          const result=await response.json();if(!response.ok)throw new Error(result.error||'Transcription failed');input.value=String(result.text).slice(0,2000);input.focus();
+        } catch(e) {state.error=(e as Error).message;render();}
+        finally {micButton.disabled=false;micButton.textContent='🎙';}
+      };
+      recorder.start();micButton.textContent='■';micTimer=setTimeout(()=>{if(recorder.state==='recording')recorder.stop()},60000);
+    } catch(e) {stream?.getTracks().forEach(t=>t.stop());state.error=(e as Error).message;render();}
+  });
+  log.addEventListener('click', e => {
+    const target=(e.target as Element).closest<HTMLElement>('[data-speak]');if(!target||!('speechSynthesis' in window))return;
+    const message=state.messages.find(m=>m.id===target.dataset.speak);if(message){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(message.content.replace(/\s*\[\d+\]/g,'').replace(/[*_`#]/g,'')));}
+  });
+  window.addEventListener('pagehide',()=>{if(mic?.state==='recording')mic.stop();mic?.stream.getTracks().forEach(t=>t.stop());});
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = input.value.trim();

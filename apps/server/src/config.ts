@@ -22,6 +22,8 @@ export const config = {
   role: (['web', 'worker'].includes(env.RELAY_ROLE ?? '') ? env.RELAY_ROLE : 'all') as 'all' | 'web' | 'worker',
   /** selfhost = everything unlocked, no billing. cloud = plan limits + Razorpay. */
   mode: (env.RELAY_MODE === 'cloud' ? 'cloud' : 'selfhost') as 'cloud' | 'selfhost',
+  /** Which product this deployment presents at / and /app. Voice runs as its own deployment. */
+  product: (env.RELAY_PRODUCT === 'voice' ? 'voice' : 'support') as 'voice' | 'support',
   /** Platform default model, used when a workspace has not configured BYOK. */
   defaultLlm: {
     provider: env.LLM_PROVIDER ?? 'extractive',

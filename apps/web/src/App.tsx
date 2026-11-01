@@ -1,7 +1,9 @@
+import { VoiceDesk, VoiceLanding } from './app/VoiceDesk';
 import { Desk } from './app/Desk';
 import { DoctorTour, PatientTour } from './tour/Tour';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Landing } from './pages/Landing';
+import { useProduct } from './lib/product';
 import { DemoStore } from './pages/DemoStore';
 import { Login, Signup, Invite } from './pages/Auth';
 import { Try, Preview } from './pages/Try';
@@ -20,10 +22,21 @@ import { Actions } from './app/Actions';
 import { Analytics } from './app/Analytics';
 import { Settings } from './app/Settings';
 
+function RootPage() {
+  const product = useProduct();
+  return product === 'voice' ? <VoiceLanding /> : product ? <Landing /> : null;
+}
+
+function AppHome() {
+  const product = useProduct();
+  return product === 'voice' ? <VoiceDesk /> : product ? <Home /> : null;
+}
+
 export function App() {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={<RootPage />} />
+      <Route path="/voice" element={<VoiceLanding />} />
       <Route path="/demo" element={<DemoStore />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
@@ -37,7 +50,9 @@ export function App() {
       <Route path="/admin" element={<Admin />} />
       <Route path="/admin/:page" element={<Admin />} />
       <Route path="/app" element={<Layout />}>
-        <Route index element={<Home />} />
+        <Route index element={<AppHome />} />
+        <Route path="voice" element={<VoiceDesk />} />
+        <Route path="agents" element={<Home />} />
         <Route path="visits" element={<Visits />} />
         <Route path="clients" element={<Clients />} />
         <Route path="clients/:id" element={<ClientDetail />} />
