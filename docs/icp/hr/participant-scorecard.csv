@@ -1,0 +1,5 @@
+case,task_completed_without_help,time_seconds,source_correct,edits_required,confidence_1_to_5,notes
+leave_answer,,,,,,
+onboarding_checklist,,,,,,
+missing_policy,,,,,,
+voice_reply,,,,,,
