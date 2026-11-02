@@ -22,13 +22,22 @@ export function VoiceProfiles({
 }) {
   const [file, setFile] = useState<File | null>(null),
     [name, setName] = useState("My voice"),
-    [challenge, setChallenge] = useState<{ id: string; phrase: string } | null>(
+    [challenge, setChallenge] = useState<{ id: string; phrase: string; expiresAt: string } | null>(
       null,
     ),
     [own, setOwn] = useState(false),
     [provider, setProvider] = useState(false),
     [busy, setBusy] = useState(false),
     [preview, setPreview] = useState("");
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!challenge) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [challenge]);
+  const secondsLeft = challenge ? Math.max(0, Math.ceil((Date.parse(challenge.expiresAt) - now) / 1000)) : 0;
+  const expired = !!challenge && secondsLeft === 0;
   // Let the person hear their take before it is sent for cloning.
   useEffect(() => {
     if (!file) return setPreview("");
@@ -53,7 +62,7 @@ export function VoiceProfiles({
     setChallenge(await api("/api/voice/profiles/challenge", { body: {} }));
   };
   const missing = [
-    !challenge && "get a phrase",
+    (!challenge || expired) && "get a fresh phrase",
     challenge && !file && "record yourself reading it",
     !own && "confirm it is your own voice",
     !provider && `allow ${engineName} to process it`,
@@ -84,7 +93,15 @@ export function VoiceProfiles({
         <li className={challenge ? "done" : ""}>
           <strong>Get a phrase to read</strong>
           {challenge ? (
-            <blockquote className="vd-phrase">{challenge.phrase}</blockquote>
+            <>
+              <blockquote className="vd-phrase">{challenge.phrase}</blockquote>
+              <small role={expired ? "alert" : undefined}>
+                {expired ? "Phrase expired. Get a new phrase before recording." : `Expires in ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}.`}
+              </small>
+              <button className="btn" disabled={busy || readOnly} onClick={() => void newPhrase().catch((e) => report((e as Error).message))}>
+                Get new phrase
+              </button>
+            </>
           ) : (
             <button
               className="btn"
@@ -103,7 +120,7 @@ export function VoiceProfiles({
           <Recorder
             onFile={setFile}
             onError={report}
-            disabled={readOnly || busy || !challenge}
+            disabled={readOnly || busy || !challenge || expired}
           />
           {preview && (
             <div className="vd-preview">

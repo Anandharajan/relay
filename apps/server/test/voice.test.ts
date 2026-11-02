@@ -52,6 +52,7 @@ let failAudio = false,
   transcript = "When does the onboarding workshop begin?",
   consentCalls = 0,
   spokenInput = "";
+let transcriptionForm = "";
 let modelDown = false;
 let unknownModels = false, consentDenied = false, deletedProfiles = 0, licenseAccepted = true;
 let reviewerReply = '{"addresses":true,"reason":"ok"}';
@@ -63,6 +64,7 @@ const engine = createServer(async (req, res) => {
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify({ id: "fixture-profile" }));
   } else if (req.url === "/v1/audio/transcriptions") {
+    transcriptionForm = Buffer.concat(body).toString('latin1');
     res.setHeader("content-type", "application/json");
     res.end(
       JSON.stringify({ text: transcript }),
@@ -485,7 +487,12 @@ test("enrollment requires reading a fresh server phrase; a recording of anything
   transcript = "This is a clip of another person talking about their holiday.";
   const wrong = await request("/api/voice/profiles", { form: enrollForm(first.id) });
   assert.equal(wrong.status, 400);
-  assert.match(((await wrong.json()) as any).error, /did not match/);
+  const mismatch = ((await wrong.json()) as any).error;
+  assert.match(mismatch, /did not match/);
+  assert.match(mismatch, /Speech recognition heard/);
+  assert.ok(mismatch.includes(transcript));
+  const mismatchAudit = await ctx.db.one("select payload from audit_log where action='voice.consent.phrase_mismatch' and target=$1", [first.id]);
+  assert.ok(!JSON.stringify(mismatchAudit).includes(transcript));
   // One attempt per phrase, even with the right words.
   transcript = first.phrase;
   assert.equal((await request("/api/voice/profiles", { form: enrollForm(first.id) })).status, 400);
@@ -504,6 +511,8 @@ test("enrollment requires reading a fresh server phrase; a recording of anything
   transcript = live.phrase.toLowerCase().replace(/[.,]/g, "").replace("for relay", "for really");
   const consentBefore = consentCalls;
   voiceId = (await json("/api/voice/profiles", { form: enrollForm(live.id) })).id;
+  assert.match(transcriptionForm, /name="language"\r\n\r\nen/);
+  assert.ok(!transcriptionForm.includes('name="prompt"'));
   assert.equal(consentCalls, consentBefore + 2);
   transcript = "When does the onboarding workshop begin?";
   const row = await ctx.db.one("select * from voice_profiles where id=$1", [
