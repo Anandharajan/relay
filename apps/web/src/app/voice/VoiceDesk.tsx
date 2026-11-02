@@ -20,6 +20,8 @@ export function VoiceDesk() {
   const { me } = useSession();
   const { data, reload, error } = useApi<Bootstrap>("/api/voice/bootstrap");
   const [clientId, setClientId] = useState("");
+  const [autoPlay, setAutoPlay] = useState(false);
+  const playbackRuns = useRef(new Set<string>());
   const [profession, setProfession] = useState("general"),
     [task, setTask] = useState("answer"),
     [question, setQuestion] = useState(""),
@@ -111,7 +113,8 @@ export function VoiceDesk() {
       f.set("voiceId", voice);
       f.set("providerConsent", "yes");
       if (audio) f.set("file", audio);
-      await api("/api/voice/runs", { form: f });
+      const created = await api<{ id: string }>("/api/voice/runs", { form: f });
+      playbackRuns.current.add(created.id);
       setQuestion("");
       setFile(null);
       setPicked(null);
@@ -128,8 +131,8 @@ export function VoiceDesk() {
   const ready = readiness.data;
   const cloning = ready
     ? ready.cloning
-    : { ok: data.speech.ttsProvider !== "none", detail: "Not checked yet" };
-  const hearing = ready ? ready.transcription.ok : data.speech.transcriptionAvailable;
+    : { ok: false, detail: "Not checked yet" };
+  const hearing = ready?.transcription.ok === true;
   const isAdmin = canAdmin(me);
   const docsReady = Boolean(docs.data?.some((d) => d.status === "ready"));
   const goTo = (t: Tab) => {
@@ -301,6 +304,10 @@ export function VoiceDesk() {
               Healthcare, HR, advisory and client replies pause for your review.
               Nothing is sent to clients automatically.
             </p>
+            <label className="vd-muted vd-thread-note">
+              <input type="checkbox" checked={autoPlay} onChange={(e) => setAutoPlay(e.target.checked)} />
+              Play new replies aloud when ready. Your browser may require tapping Play.
+            </label>
             {[...runs].reverse().map((r) => (
               <Reply
                 key={r.id}
@@ -309,12 +316,15 @@ export function VoiceDesk() {
                 disabled={busy || readOnly}
                 voices={liveVoices}
                 cloning={cloning.ok}
+                autoPlay={autoPlay && playbackRuns.current.has(r.id)}
+                playbackAttempted={() => playbackRuns.current.delete(r.id)}
                 open={(n) => openRun(r.id, n)}
                 enroll={() => goTo("voices")}
                 approve={(answer, voiceId) =>
-                  act(() =>
-                    api(`/api/voice/runs/${r.id}/approve`, { body: { answer, voiceId } }),
-                  )
+                  act(async () => {
+                    await api(`/api/voice/runs/${r.id}/approve`, { body: { answer, voiceId } });
+                    playbackRuns.current.add(r.id);
+                  })
                 }
                 clarify={(answer) =>
                   act(() =>

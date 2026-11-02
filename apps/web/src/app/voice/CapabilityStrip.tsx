@@ -17,9 +17,9 @@ export function CapabilityStrip({
   liveVoices: number;
 }) {
   const [whyOpen, setWhyOpen] = useState(false);
-  const modelOk = ready ? ready.model.ok : data.reasoning.connected;
-  const hearingOk = ready ? ready.transcription.ok : data.speech.transcriptionAvailable;
-  const cloningOk = ready ? ready.cloning.ok : true;
+  const modelOk = ready?.model.ok === true;
+  const hearingOk = ready?.transcription.ok === true;
+  const cloningOk = ready?.cloning.ok === true;
   const capabilities: { on: boolean; label: string; why: string }[] = [
     ...(ready && !ready.db.ok
       ? [{ on: false, label: "Database: off", why: `. ${ready.db.detail}` }]
@@ -52,7 +52,7 @@ export function CapabilityStrip({
           on: false,
           label: "Cloned replies: off",
           why: !cloningOk
-            ? `. ${brief(ready?.cloning.detail ?? "")}`
+            ? `. ${brief(ready?.cloning.detail ?? "Checking the speech engine")}`
             : data.speech.ttsProvider === "none"
               ? ". Connect a cloning engine"
               : ". Enroll your voice",

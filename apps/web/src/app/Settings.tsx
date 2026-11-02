@@ -182,7 +182,7 @@ function Model() {
           <Field label="Model" hint={provider?.model ? `Default: ${provider.model}` : undefined}>
             <input className="input" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder={provider?.model ?? ''} disabled={!admin} />
           </Field>
-          {['ollama', 'openai-compatible'].includes(form.provider) && (
+          {['ollama', 'freetoken', 'colibri', 'openai-compatible'].includes(form.provider) && (
             <Field label="Base URL" hint="OpenAI-compatible endpoint, e.g. http://localhost:11434/v1 for Ollama or your LiteLLM proxy.">
               <input className="input" value={form.baseUrl} onChange={(e) => setForm({ ...form, baseUrl: e.target.value })} disabled={!admin} />
             </Field>

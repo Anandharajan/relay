@@ -5,6 +5,10 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+      args:
+        HTTP_PROXY: ${HTTPS_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NODE_USE_ENV_PROXY: ${NODE_USE_ENV_PROXY:-}
     restart: unless-stopped
     ports:
       - "127.0.0.1:8788:8787"
@@ -16,7 +20,10 @@ services:
       PUBLIC_URL: http://localhost:8788
       RELAY_PRODUCT: voice
       DEMO_SEED: "false"
-      LLM_PROVIDER: extractive
+      LLM_PROVIDER: ${LLM_PROVIDER:-extractive}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
       VOICESTUDIO_URL: ${VOICESTUDIO_URL:-}
       VOICESTUDIO_API_KEY: ${VOICESTUDIO_API_KEY:-}
       SPEECH_STT_ALLOWED_HOSTS: ${SPEECH_STT_ALLOWED_HOSTS:-}
@@ -44,11 +51,51 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+  inference-gateway:
+    profiles: ["cpu-ai"]
+    image: fin-voice:local
+    command: ["node", "src/speech-gateway.ts"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8790:8790"
+    environment:
+      PORT: "8790"
+      INFERENCE_GATEWAY_SECRET: ${INFERENCE_GATEWAY_SECRET:-}
+      VOICESTUDIO_URL: http://voicestudio:3900
+      VOICESTUDIO_API_KEY: ${OMNIVOICE_API_KEY:-}
+      LLM_BASE_URL: http://colibri:8000/v1
+      LLM_API_KEY: ${COLIBRI_API_KEY:-}
+    volumes:
+      - voicestudio-data:/voicestudio-data:ro
+    healthcheck:
+      disable: true
+  colibri:
+    profiles: ["cpu-ai"]
+    image: relay-colibri:cpu
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.colibri
+      args:
+        HTTP_PROXY: ${HTTPS_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      COLI_API_KEY: ${COLIBRI_API_KEY:-}
+      COLI_ALLOWED_HOSTS: colibri
+      OMP_NUM_THREADS: "4"
+    volumes:
+      - colibri-models:/models:ro
+    mem_limit: 10g
+    cpus: 4
   # Optional: `--profile voicestudio` runs VoiceStudio beside the app (a 17 GB image, plus model weights).
   # VoiceStudio will not start without OMNIVOICE_API_KEY: put a long random value in .env.voice first.
   # Then in the desk's VoiceStudio tab use http://voicestudio:3900 with that key.
   voicestudio:
     profiles: ["voicestudio"]
+    # Its stored-token encryption can fall back to hostname + user in Docker.
+    hostname: ${VOICESTUDIO_HOSTNAME:-relay-voicestudio}
     image: ghcr.io/debpalash/voicestudio:stable
     restart: unless-stopped
     ports:
@@ -56,8 +103,19 @@ services:
     environment:
       OMNIVOICE_API_KEY: ${OMNIVOICE_API_KEY:-}
       OMNIVOICE_ANALYTICS_DISABLED: "1"
+      OMNIVOICE_MOSS_TTS_MODEL: OpenMOSS-Team/MOSS-TTS-Nano-100M
+      OMNIVOICE_MOSS_TTS_TOKENIZER: OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano
+      OMP_NUM_THREADS: "4"
+      # Installer dependencies and HF weights need the same egress proxy as the app.
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      HTTP_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: localhost,127.0.0.1,voicestudio,postgres,host.docker.internal
+      HF_HOME: /root/.omnivoice/huggingface
     volumes:
-      - voicestudio-data:/app/omnivoice_data
+      # VoiceStudio defaults to ~/.omnivoice; /app/omnivoice_data was unused.
+      # Existing installations must copy their live data before recreating (see VOICE_CPU.md).
+      - voicestudio-data:/root/.omnivoice
 volumes:
+  colibri-models:
   voice-postgres:
   voicestudio-data:

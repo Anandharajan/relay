@@ -39,6 +39,7 @@ const openAiCompatible: Record<string, { baseUrl: string; model: string }> = {
   openrouter: { baseUrl: 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct' },
   ollama: { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5:7b' },
   freetoken: { baseUrl: 'http://localhost:1919/v1', model: 'default' },
+  colibri: { baseUrl: 'http://localhost:8000/v1', model: 'default' },
   'openai-compatible': { baseUrl: 'http://localhost:4000/v1', model: 'default' },
 };
 
@@ -52,6 +53,7 @@ export const providerCatalog = [
   { id: 'openrouter', label: 'OpenRouter (BYOK)', needsKey: true, model: openAiCompatible.openrouter!.model },
   { id: 'ollama', label: 'Ollama (self-hosted, open-weight)', needsKey: false, model: openAiCompatible.ollama!.model },
   { id: 'freetoken', label: 'FreeToken (self-hosted, open-weight)', needsKey: false, model: openAiCompatible.freetoken!.model },
+  { id: 'colibri', label: 'Colibri (self-hosted, open-source runtime)', needsKey: false, model: openAiCompatible.colibri!.model },
   { id: 'openai-compatible', label: 'Any OpenAI-compatible (LiteLLM, vLLM...)', needsKey: false, model: '' },
 ];
 
