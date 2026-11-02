@@ -1,6 +1,7 @@
 # Relay: single image serving the API, dashboard PWA, landing page and widget.js
 FROM node:24-slim AS build
 WORKDIR /app
+ARG NODE_USE_ENV_PROXY
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
 COPY apps/server/package.json apps/server/

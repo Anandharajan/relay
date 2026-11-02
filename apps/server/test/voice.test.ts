@@ -53,6 +53,7 @@ let failAudio = false,
   consentCalls = 0,
   spokenInput = "";
 let modelDown = false;
+let unknownModels = false, consentDenied = false, deletedProfiles = 0, licenseAccepted = true;
 let reviewerReply = '{"addresses":true,"reason":"ok"}';
 const engine = createServer(async (req, res) => {
   calls++;
@@ -101,6 +102,11 @@ const engine = createServer(async (req, res) => {
     );
   } else if (/^\/profiles\/[^/]+\/(consent|attestation)$/.test(req.url!)) {
     consentCalls++;
+    if (consentDenied) {
+      res.statusCode = 403;
+      res.end('{}');
+      return;
+    }
     res.setHeader("content-type", "application/json");
     res.end("{}");
   } else if (req.url === "/health") {
@@ -119,13 +125,21 @@ const engine = createServer(async (req, res) => {
     res.end(
       JSON.stringify({
         active: "omnivoice",
+        active_model: "fixture/clone",
         backends: [
-          { id: "omnivoice", display_name: "OmniVoice", available: true },
+          { id: "omnivoice", display_name: "OmniVoice", available: true, supports_cloning: true, license_required: true, license_accepted: licenseAccepted },
           { id: "kittentts", supports_cloning: false },
         ],
       }),
     );
+  } else if (req.url === "/engines/asr") {
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ active: "faster-whisper", active_model: "fixture/asr", backends: [{ id: "faster-whisper", available: true }] }));
+  } else if (req.url === "/models") {
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ models: unknownModels ? [] : [{ repo_id: "fixture/clone", installed: true }, { repo_id: "fixture/asr", installed: true }] }));
   } else if (req.method === "DELETE") {
+    deletedProfiles++;
     res.end("{}");
   } else {
     res.statusCode = 404;
@@ -368,6 +382,47 @@ test("a workspace connects its own VoiceStudio and sees its engines", async () =
     await json("/api/voice/settings", { method: "PUT", body: base });
   }
 });
+test("readiness refuses unknown models, unaccepted licences and a non-active selected engine", async () => {
+  const { voiceStudioStatus, speechDefaults } = await import("../src/adapters/speech.ts");
+  const settings = { ...speechDefaults, ttsProvider: "voicestudio" as const };
+  assert.equal((await voiceStudioStatus(settings, {})).canClone, true);
+  assert.equal((await voiceStudioStatus(settings, {})).canHear, true);
+  unknownModels = true;
+  try {
+    const status = await voiceStudioStatus(settings, {});
+    assert.equal(status.canClone, false);
+    assert.equal(status.canHear, false);
+    const ready = await json("/api/voice/readiness");
+    assert.equal(ready.cloning.ok, false);
+    assert.equal(ready.transcription.ok, false);
+  } finally { unknownModels = false; }
+  licenseAccepted = false;
+  try { assert.equal((await voiceStudioStatus(settings, {})).canClone, false); }
+  finally { licenseAccepted = true; }
+  assert.equal((await voiceStudioStatus({ ...settings, engine: "pockettts" }, {})).canClone, false);
+});
+
+test("failed upstream consent deletes the new profile and never reports enrollment success", async () => {
+  const { enrollVoice, speechDefaults } = await import("../src/adapters/speech.ts");
+  const before = deletedProfiles;
+  consentDenied = true;
+  try {
+    await assert.rejects(enrollVoice("Contract fixture", wav, "audio/wav", "own voice", { ...speechDefaults, ttsProvider: "voicestudio" }, {}), /could not record consent/);
+    assert.equal(deletedProfiles, before + 1);
+  } finally { consentDenied = false; }
+});
+
+test("Colibri uses the OpenAI-compatible completion contract", async () => {
+  const { createLlm, providerCatalog } = await import("../src/adapters/llm.ts");
+  assert.ok(providerCatalog.some((p) => p.id === "colibri"));
+  const llm = createLlm({ provider: "colibri", baseUrl: process.env.VOICESTUDIO_URL + "/v1", model: "fixture-small", apiKey: "fixture-key" })!;
+  const result = await llm.complete("Use the supplied sources", [{ role: "user", content: "When is onboarding?" }], { maxTokens: 120 });
+  assert.match(result.text, /Monday/);
+  const sent = JSON.parse(modelInput);
+  assert.equal(sent.model, "fixture-small");
+  assert.equal(sent.max_tokens, 120);
+});
+
 test("client documents index with org and client isolation", async () => {
   clientId = (
     await json("/api/voice/clients", { body: { name: "Workshop team" } })
@@ -656,7 +711,8 @@ test("PDF and DOCX files use the real extraction libraries", async () => {
     assert.match(chunk!.content, /workshop begins on Monday/);
   }
 });
-test("the durable queue executes a typed question without a speech engine", async () => {
+test("transactional voice jobs wake the durable worker without waiting for polling", async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
   const { registerJob, startJobs, drainJobs } = await import(
     "../src/jobs/runner.ts"
   );
@@ -671,8 +727,10 @@ test("the durable queue executes a typed question without a speech engine", asyn
   f.set("task", "summary");
   f.set("question", "Summarize the onboarding workshop");
   f.set("providerConsent", "yes");
-  const { id } = await json("/api/voice/runs", { form: f });
   await startJobs([]);
+  // Let the initial empty tick finish; interval polling stays frozen throughout.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const { id } = await json("/api/voice/runs", { form: f });
   try {
     let status = "";
     const until = Date.now() + 10000;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isNotFound, spoken, statusLabels, type Profile, type Run } from "./model";
 export function Reply({
   run: r,
@@ -6,6 +6,8 @@ export function Reply({
   disabled,
   voices,
   cloning,
+  autoPlay,
+  playbackAttempted,
   open,
   enroll,
   approve,
@@ -19,6 +21,8 @@ export function Reply({
   voices: Profile[];
   /** Whether the cloning engine is answering right now. */
   cloning: boolean;
+  autoPlay: boolean;
+  playbackAttempted: () => void;
   open: (n?: number) => void;
   enroll: () => void;
   approve: (s: string, voiceId?: string) => Promise<void>;
@@ -26,6 +30,24 @@ export function Reply({
   remove: () => Promise<void>;
 }) {
   const [draft, setDraft] = useState(r.answer);
+  const audio = useRef<HTMLAudioElement>(null);
+  const attempted = useRef(false);
+  const [playBlocked, setPlayBlocked] = useState(false);
+  useEffect(() => {
+    if (r.status !== "ready") {
+      attempted.current = false;
+      setPlayBlocked(false);
+      return;
+    }
+    if (!autoPlay || attempted.current || !audio.current) return;
+    attempted.current = true;
+    playbackAttempted();
+    void audio.current.play().catch(() => setPlayBlocked(true));
+  }, [r.status, autoPlay]);
+  useEffect(() => {
+    const player = audio.current;
+    return () => player?.pause();
+  }, [r.status]);
   const [clarification, setClarification] = useState("");
   const [speakAs, setSpeakAs] = useState(r.voice_id ?? voices[0]?.id ?? "");
   useEffect(() => setDraft(r.answer), [r.answer]);
@@ -189,10 +211,12 @@ export function Reply({
         {r.status === "ready" && (
           <div className="vd-playback">
             <audio
+              ref={audio}
               controls
               preload="none"
               src={`/api/voice/runs/${r.id}/audio`}
             />
+            {playBlocked && <p role="status">Tap Play to hear your reply. Your browser blocked automatic playback.</p>}
             <a
               className="btn"
               href={`/api/voice/runs/${r.id}/audio?download=1`}
@@ -202,6 +226,7 @@ export function Reply({
             </a>
           </div>
         )}
+        {settledTiming(r) && <p className="vd-muted vd-hint">{settledTiming(r)}</p>}
         {r.answer && !notFound && r.status !== "ready" && "speechSynthesis" in window && (
           <button
             className="vd-text-button"
@@ -218,4 +243,10 @@ export function Reply({
       </div>
     </article>
   );
+}
+
+function settledTiming(r: Run) {
+  if (!["ready", "ready_text", "review", "audio_failed"].includes(r.status)) return "";
+  const ms = r.steps.reduce((total, step) => total + (Number.isFinite(step.ms) && (step.ms ?? 0) > 0 ? step.ms! : 0), 0);
+  return ms ? `Agent work: ${(ms / 1000).toFixed(1)}s summed across steps; excludes queue, review and playback.` : "";
 }

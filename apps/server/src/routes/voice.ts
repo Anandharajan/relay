@@ -33,6 +33,7 @@ import {
 } from "../services/voice-consent.ts";
 import { audit, llmForOrg } from "../services/orgs.ts";
 import { rateLimit } from "../lib/ratelimit.ts";
+import { kickJobs } from "../jobs/runner.ts";
 export const voiceApi = new Hono<AppEnv>();
 voiceApi.use("*", requireUser, requireOrg);
 voiceApi.use(
@@ -112,7 +113,7 @@ voiceApi.get("/bootstrap", async (c) => {
     reasoning: {
       connected: !!model.llm,
       provider: model.llm?.provider ?? null,
-      local: ["freetoken", "ollama"].includes(model.llm?.provider ?? ""),
+      local: ["freetoken", "ollama", "colibri"].includes(model.llm?.provider ?? ""),
     },
     speech: {
       ...settings,
@@ -191,8 +192,8 @@ voiceApi.get("/readiness", async (c) => {
     );
     const up = status.state === "connected";
     return {
-      hear: { ok: up && status.canHear !== false, detail: status.message },
-      clone: { ok: up && status.canClone !== false, detail: status.message },
+      hear: { ok: up && status.canHear === true, detail: status.message },
+      clone: { ok: up && status.canClone === true, detail: status.message },
     };
   };
   const [modelStatus, studio] = await Promise.all([modelCheck(), studioCheck()]);
@@ -304,6 +305,7 @@ voiceApi.post("/clients/:id/documents", requireRole("agent"), async (c) => {
       [uuid(), { documentId: id, orgId }],
     );
   });
+  kickJobs();
   voiceChanged(orgId);
   return c.json({ id }, 201);
 });
@@ -508,6 +510,7 @@ voiceApi.post("/runs", requireRole("agent"), async (c) => {
       [uuid(), { runId: id, orgId }],
     );
   });
+  kickJobs();
   voiceChanged(orgId);
   return c.json({ id }, 202);
 });
@@ -529,6 +532,7 @@ voiceApi.post("/runs/:id/clarify", requireRole("agent"), async (c) => {
       [uuid(), { runId: rows[0]!.id, orgId }],
     );
   });
+  kickJobs();
   voiceChanged(orgId);
   return c.json({ ok: true }, 202);
 });
@@ -567,6 +571,7 @@ voiceApi.post("/runs/:id/approve", requireRole("agent"), async (c) => {
     return rows[0]!.id;
   });
   await audit(orgId, userId, "voice.draft.approved", id);
+  kickJobs();
   voiceChanged(orgId);
   return c.json({ ok: true }, 202);
 });

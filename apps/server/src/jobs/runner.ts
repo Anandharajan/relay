@@ -12,12 +12,18 @@ const handlers = new Map<string, Handler>();
 let timer: NodeJS.Timeout | null = null;
 let recovery: NodeJS.Timeout | null = null;
 let running = 0;
+let claiming = false;
 /** Only processes that called startJobs() claim work; web-only instances just enqueue. */
 let active = false;
 const MAX_CONCURRENCY = Number(process.env.JOB_CONCURRENCY ?? 2);
 
 export function registerJob(type: string, fn: Handler) {
   handlers.set(type, fn);
+}
+
+/** Call after committing transactional job inserts; polling remains crash recovery. */
+export function kickJobs() {
+  setImmediate(tick);
 }
 
 export async function enqueue(type: string, payload: object = {}, delayMs = 0): Promise<string> {
@@ -44,17 +50,24 @@ async function claim() {
 }
 
 async function tick() {
-  while (active && running < MAX_CONCURRENCY) {
-    const job = await claim().catch((e) => {
-      console.error('[jobs] claim failed', e.message);
-      return undefined;
-    });
-    if (!job) return;
-    running++;
-    void execute(job).finally(() => {
-      running--;
-      setImmediate(tick);
-    });
+  // Several commit notifications can arrive while a claim awaits the database.
+  if (claiming) return;
+  claiming = true;
+  try {
+    while (active && running < MAX_CONCURRENCY) {
+      const job = await claim().catch((e) => {
+        console.error('[jobs] claim failed', e.message);
+        return undefined;
+      });
+      if (!job) return;
+      running++;
+      void execute(job).finally(() => {
+        running--;
+        setImmediate(tick);
+      });
+    }
+  } finally {
+    claiming = false;
   }
 }
 

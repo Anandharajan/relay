@@ -225,16 +225,20 @@ export async function enrollVoice(
     consent.set("consent_audio", ...referenceFile(data, mime));
     consent.set("consent_text", reference);
     const base = `${studio.base}/profiles/${encodeURIComponent(id)}`;
-    await Promise.all([
+    const recorded = await Promise.allSettled([
       checked(base + "/consent", { method: "POST", headers: h, body: consent }),
       checked(base + "/attestation", {
         method: "POST",
         headers: { ...h, "content-type": "application/json" },
         body: JSON.stringify({ basis: "own_voice" }),
       }),
-    ]).catch((e) =>
-      console.warn("[voice] VoiceStudio consent not recorded:", (e as Error).message),
-    );
+    ]);
+    if (recorded.some((r) => r.status === "rejected")) {
+      // Wait for both writes before deleting: no late attestation may race cleanup.
+      await removeProviderVoice({ provider: "voicestudio", provider_id: id }, config, secrets)
+        .catch(() => console.error("[voice] Failed to remove unconsented upstream profile"));
+      throw new PermanentError("Voice enrollment failed because VoiceStudio could not record consent. No usable voice was enrolled. Retry after checking VoiceStudio.");
+    }
   }
   return id;
 }
@@ -258,7 +262,7 @@ export async function synthesizeSpeech(
     body = {
       input: text.slice(0, 4000),
       voice: voice.provider_id,
-      model: config.engine || "omnivoice",
+      model: config.engine || "tts-1",
       response_format: "wav",
     };
   } else if (voice.provider === "elevenlabs") {
@@ -355,19 +359,23 @@ export async function voiceStudioStatus(config: SpeechConfig, secrets: SpeechSec
     const found = ((catalog?.models ?? []) as any[]).find((m) => m.repo_id === repo);
     return found ? found.installed === true : null;
   };
-  const cloningModel = typeof tts?.active_model === "string" ? tts.active_model : null;
+  const selected = config.engine || tts?.active;
+  const backend = ((tts?.backends ?? []) as any[]).find((b) => b.id === selected);
+  const cloningModel = selected === tts?.active && typeof tts?.active_model === "string" ? tts.active_model : null;
   const hearingModel = typeof asr?.active_model === "string" ? asr.active_model : null;
   const missing = [
-    installed(hearingModel) === false && `${hearingModel} (speech to text)`,
-    installed(cloningModel) === false && `${cloningModel} (voice cloning)`,
+    installed(hearingModel) !== true && `${hearingModel || "unverified model"} (speech to text)`,
+    installed(cloningModel) !== true && `${cloningModel || "unverified selected model"} (voice cloning)`,
+    (!backend || backend.available !== true || backend.supports_cloning === false) && "selected cloning engine is unavailable",
+    backend?.license_required === true && backend?.license_accepted !== true && "cloning model licence needs acceptance",
   ].filter((m): m is string => !!m);
   return {
     state: "connected" as const,
     message: missing.length
       ? `Connected, but VoiceStudio has no model yet for: ${missing.join(", ")}. Open VoiceStudio, download them and accept their licences.`
       : "Connected.",
-    canHear: installed(hearingModel) !== false,
-    canClone: installed(cloningModel) !== false,
+    canHear: installed(hearingModel) === true && ((asr?.backends ?? []) as any[]).some((b) => b.id === asr?.active && b.available === true),
+    canClone: installed(cloningModel) === true && backend?.available === true && backend?.supports_cloning !== false && (backend?.license_required !== true || backend?.license_accepted === true),
     version: state?.version ?? capabilities?.service_version ?? null,
     device: state?.device ?? null,
     protocol: capabilities?.protocol ?? null,
