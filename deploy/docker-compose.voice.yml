@@ -45,7 +45,8 @@ services:
       timeout: 5s
       retries: 20
   # Optional: `--profile voicestudio` runs VoiceStudio beside the app (a 17 GB image, plus model weights).
-  # Then in Voice settings use http://voicestudio:3900 with OMNIVOICE_API_KEY as the key.
+  # VoiceStudio will not start without OMNIVOICE_API_KEY: put a long random value in .env.voice first.
+  # Then in the desk's VoiceStudio tab use http://voicestudio:3900 with that key.
   voicestudio:
     profiles: ["voicestudio"]
     image: ghcr.io/debpalash/voicestudio:stable

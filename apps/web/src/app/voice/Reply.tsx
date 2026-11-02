@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { isNotFound, spoken, statusLabels, type Run } from "./model";
+import { isNotFound, spoken, statusLabels, type Profile, type Run } from "./model";
 export function Reply({
   run: r,
   shown,
   disabled,
+  voices,
+  cloning,
   open,
+  enroll,
   approve,
   clarify,
   remove,
@@ -12,17 +15,28 @@ export function Reply({
   run: Run;
   shown: boolean;
   disabled: boolean;
+  /** The person's enrolled voices that can still be used. */
+  voices: Profile[];
+  /** Whether the cloning engine is answering right now. */
+  cloning: boolean;
   open: (n?: number) => void;
-  approve: (s: string) => Promise<void>;
+  enroll: () => void;
+  approve: (s: string, voiceId?: string) => Promise<void>;
   clarify: (s: string) => Promise<void>;
   remove: () => Promise<void>;
 }) {
   const [draft, setDraft] = useState(r.answer);
   const [clarification, setClarification] = useState("");
+  const [speakAs, setSpeakAs] = useState(r.voice_id ?? voices[0]?.id ?? "");
   useEffect(() => setDraft(r.answer), [r.answer]);
+  useEffect(() => {
+    if (speakAs && !voices.some((v) => v.id === speakAs)) setSpeakAs(voices[0]?.id ?? "");
+  }, [voices, speakAs]);
   const notFound = isNotFound(r.answer);
   const review = !notFound && ["review", "audio_failed", "ready_text"].includes(r.status);
   const approved = r.status === "ready_text";
+  const generating = ["queued_audio", "synthesizing"].includes(r.status);
+  const voiceName = voices.find((v) => v.id === speakAs)?.name;
   // Tall enough for the draft and no taller, so the thread stays readable.
   const draftRows = Math.min(
     12,
@@ -119,19 +133,58 @@ export function Reply({
           </ul>
         )}
         {review && r.answer && (
-          <button
-            className="btn primary"
-            disabled={disabled || !draft.trim() || (approved && draft === r.answer)}
-            onClick={() => void approve(draft)}
-          >
-            {r.status === "audio_failed"
-              ? "Approve and retry audio"
-              : approved
-                ? "Save edited reply"
-                : r.voice_id
-                  ? "Approve & generate audio"
-                  : "Approve reply"}
-          </button>
+          <div className="vd-approve">
+            {voices.length > 0 && (
+              <label className="vd-speak-as">
+                Speak it in
+                <select value={speakAs} onChange={(e) => setSpeakAs(e.target.value)}>
+                  <option value="">Text only</option>
+                  {voices.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <button
+              className="btn primary"
+              disabled={
+                disabled ||
+                !draft.trim() ||
+                (approved && draft === r.answer && !speakAs)
+              }
+              onClick={() => void approve(draft, speakAs || undefined)}
+            >
+              {r.status === "audio_failed"
+                ? "Approve and retry audio"
+                : speakAs
+                  ? `Approve & speak in ${voiceName}`
+                  : approved
+                    ? "Save edited reply"
+                    : "Approve reply"}
+            </button>
+          </div>
+        )}
+        {review && r.answer && !voices.length && (
+          <p className="vd-muted vd-hint">
+            Want to hear this in your own voice?{" "}
+            <button type="button" className="vd-text-button" onClick={enroll}>
+              Enroll your voice
+            </button>
+          </p>
+        )}
+        {speakAs && review && !cloning && (
+          <p className="vd-muted vd-hint">
+            VoiceStudio is not answering right now, so audio may fail. The text reply is kept and
+            you can retry.
+          </p>
+        )}
+        {generating && (
+          <p className="vd-generating" role="status">
+            <span className="vd-dot" aria-hidden="true" /> Cloning your voice for this reply. The
+            first one can take a few minutes while VoiceStudio loads its model.
+          </p>
         )}
         {r.status === "ready" && (
           <div className="vd-playback">

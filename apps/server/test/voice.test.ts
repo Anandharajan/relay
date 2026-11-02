@@ -572,6 +572,31 @@ test("spoken audio omits citations while the on-screen reply keeps them", async 
   assert.match(spokenInput, /Monday/);
   assert.ok(!/\[\d+\]/.test(spokenInput));
 });
+test("a text-only reply can be spoken in the cloned voice when it is approved", async () => {
+  const f = runForm();
+  f.set("voiceId", "");
+  const { id } = await json("/api/voice/runs", { form: f });
+  await processVoiceRun({ runId: id, orgId });
+  assert.equal((await ctx.db.one("select status from voice_runs where id=$1", [id]))!.status, "ready_text");
+  // Another person's voice, or one that does not exist, is refused before anything changes.
+  const foreign = await request(`/api/voice/runs/${id}/approve`, {
+    body: { answer: "The workshop begins on Monday at 9 AM. [1]", voiceId: uuid() },
+  });
+  assert.equal(foreign.status, 404);
+  await json(`/api/voice/runs/${id}/approve`, {
+    body: { answer: "The workshop begins on Monday at 9 AM. [1]", voiceId },
+  });
+  await renderVoiceRun({ runId: id, orgId });
+  const row = (await ctx.db.one("select * from voice_runs where id=$1", [id]))!;
+  assert.equal(row.voice_id, voiceId);
+  assert.equal(row.status, "ready");
+  assert.deepEqual(Buffer.from(decrypt(row.output_enc), "base64"), wav);
+});
+test("the operator's VoiceStudio is the default cloning engine", async () => {
+  const boot = await json("/api/voice/bootstrap", { jar: otherCookie });
+  assert.equal(boot.speech.ttsProvider, "voicestudio");
+  assert.equal(boot.speech.transcriptionAvailable, true);
+});
 test("speech failures retain a retryable draft, and retry succeeds", async () => {
   const { id } = await json("/api/voice/runs", { form: runForm() });
   failAudio = true;

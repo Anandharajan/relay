@@ -1,5 +1,11 @@
 import { useState } from "react";
 import type { Bootstrap, Readiness } from "./model";
+/** The first sentence of a readiness detail: the guide and the VoiceStudio tab give the rest. */
+const brief = (detail: string) => {
+  if (/no model yet/.test(detail)) return "VoiceStudio needs its models";
+  const first = detail.split(/(?<=[.:])\s/)[0]!.replace(/[.:]$/, "");
+  return first.length > 70 ? `${first.slice(0, 67)}…` : first;
+};
 /** What works in this workspace right now, using live readiness once the server has answered. */
 export function CapabilityStrip({
   data,
@@ -37,7 +43,7 @@ export function CapabilityStrip({
           on: false,
           label: "Spoken questions: off",
           why: ready
-            ? `. ${ready.transcription.detail}`
+            ? `. ${brief(ready.transcription.detail)}`
             : ". Type your question, or connect transcription",
         },
     liveVoices && cloningOk
@@ -46,7 +52,7 @@ export function CapabilityStrip({
           on: false,
           label: "Cloned replies: off",
           why: !cloningOk
-            ? `. ${ready?.cloning.detail}`
+            ? `. ${brief(ready?.cloning.detail ?? "")}`
             : data.speech.ttsProvider === "none"
               ? ". Connect a cloning engine"
               : ". Enroll your voice",

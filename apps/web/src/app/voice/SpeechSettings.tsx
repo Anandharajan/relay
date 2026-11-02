@@ -3,10 +3,13 @@ import { api } from "../../lib/api";
 import type { Speech, StudioStatus } from "./model";
 export function SpeechSettings({
   speech,
+  status,
   done,
   report,
 }: {
   speech: Speech;
+  /** The live check of the cloning engine, so this tab says what is wrong before anyone tests. */
+  status?: { ok: boolean; detail: string };
   done: () => void;
   report: (s: string) => void;
 }) {
@@ -17,13 +20,13 @@ export function SpeechSettings({
     [studio, setStudio] = useState<StudioStatus | null>(null),
     [busy, setBusy] = useState(false);
   const field = (k: keyof Speech, v: string) => setS((p) => ({ ...p, [k]: v }));
-  const save = async () => {
+  const save = async (ttsProvider = s.ttsProvider) => {
     await api("/api/voice/settings", {
       method: "PUT",
       body: {
         sttUrl: s.sttUrl,
         sttModel: s.sttModel,
-        ttsProvider: s.ttsProvider,
+        ttsProvider,
         ttsModel: s.ttsModel,
         engine: s.engine,
         voicestudioUrl: s.voicestudioUrl,
@@ -54,11 +57,39 @@ export function SpeechSettings({
         }
       }}
     >
-      <h2>Speech connections</h2>
+      <h2>Connect VoiceStudio</h2>
       <p>
-        Voice enrollment and audio generation require a connected engine; no
-        synthetic demo audio is substituted.
+        VoiceStudio does the voice work: it turns recorded questions into text,
+        clones each person’s voice and speaks approved replies in it. No
+        synthetic stand-in audio is ever used.
       </p>
+      {status && (
+        <p className={status.ok ? "vd-studio-status connected" : "vd-blocked"} role="status">
+          <strong>{status.ok ? "Ready: " : "Not ready yet: "}</strong>
+          {status.detail}
+        </p>
+      )}
+      <details className="vd-howto">
+        <summary>How to run VoiceStudio</summary>
+        <ol>
+          <li>
+            On the computer that runs Relay, start it beside the app:
+            <code>docker compose --env-file .env.voice -f deploy/docker-compose.voice.yml --profile voicestudio up -d voicestudio</code>
+          </li>
+          <li>
+            Open <code>http://localhost:3900</code> on that computer, download a speech-to-text model and a
+            cloning engine, and accept their licences yourself. Pick an engine whose licence allows your use.
+          </li>
+          <li>
+            Here, enter <code>http://voicestudio:3900</code> and its <code>OMNIVOICE_API_KEY</code>, then
+            press <em>Save, test and use VoiceStudio</em>.
+          </li>
+        </ol>
+        <p className="vd-muted">
+          A VoiceStudio on another server needs an HTTPS address the operator has allowed. It runs on a
+          CPU, slowly; a GPU makes cloned replies much faster.
+        </p>
+      </details>
       <fieldset className="vd-studio">
         <legend>
           <a
@@ -106,7 +137,14 @@ export function SpeechSettings({
             setStudio(null);
             try {
               await save();
-              setStudio(await api("/api/voice/voicestudio/status"));
+              const status: StudioStatus = await api("/api/voice/voicestudio/status");
+              setStudio(status);
+              // A working VoiceStudio becomes the cloning engine unless another one was chosen on purpose.
+              if (status.state === "connected" && s.ttsProvider === "none") {
+                await save("voicestudio");
+                setS((p) => ({ ...p, ttsProvider: "voicestudio" }));
+                report("VoiceStudio is connected and now clones voices for this workspace.");
+              }
               done();
             } catch (e) {
               report((e as Error).message);
@@ -115,7 +153,7 @@ export function SpeechSettings({
             }
           }}
         >
-          Save and test connection
+          Save, test and use VoiceStudio
         </button>
         {studio && (
           <div className={"vd-studio-status " + studio.state} role="status">
@@ -153,6 +191,8 @@ export function SpeechSettings({
           )}
         </label>
       </fieldset>
+      <details className="vd-more-providers">
+        <summary>Other providers (optional)</summary>
       <div className="vd-two">
         <label>
           Transcription base URL
@@ -209,6 +249,7 @@ export function SpeechSettings({
           />
         </label>
       </div>
+      </details>
       <label className="vd-check">
         <input
           type="checkbox"
