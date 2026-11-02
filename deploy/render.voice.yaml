@@ -29,6 +29,8 @@ services:
         value: "false"
       - key: SIGNUP_INVITE_CODE
         value: ""          # public workspace registration; no access code required
+      - key: PUBLIC_WORKSPACE_SIGNUP
+        value: "true"
       - key: PLATFORM_ADMIN_EMAILS
         sync: false
       - key: VOICESTUDIO_URL

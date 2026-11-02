@@ -7,6 +7,10 @@ import { clearRateLimits } from "../src/lib/ratelimit.ts";
 process.env.DATA_DIR = ":memory:";
 process.env.DATABASE_URL = "";
 process.env.DEMO_SEED = "false";
+// A stale deployment invite code must not gate public Voice workspace registration.
+process.env.RELAY_PRODUCT = "voice";
+process.env.PUBLIC_WORKSPACE_SIGNUP = "true";
+process.env.SIGNUP_INVITE_CODE = "stale-deployment-code";
 process.env.LLM_PROVIDER = "extractive";
 process.env.RELAY_SECRET = "voice-test-secret-not-a-production-secret";
 const { ctx } = await import("../src/ctx.ts");
