@@ -368,12 +368,13 @@ voiceApi.post("/profiles", requireRole("agent"), async (c) => {
   const data = new Uint8Array(await file.arrayBuffer());
   let providerId: string;
   try {
-    const heard = await transcribeAudio(data, file.type, settings, secrets);
+    // The consent statement is English. Specify the language, never the expected words.
+    const heard = await transcribeAudio(data, file.type, settings, secrets, "en");
     if (!phraseMatches(heard, reference)) {
       await audit(orgId, userId, "voice.consent.phrase_mismatch", challengeId);
       fail(
         400,
-        "The recording did not match the phrase. Get a new phrase and read it clearly.",
+        `The recording did not match the phrase. Speech recognition heard: “${heard.slice(0, 600)}”. Get a new phrase and read the full statement, including the code words.`,
       );
     }
     providerId = await enrollVoice(

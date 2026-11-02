@@ -144,6 +144,7 @@ export async function transcribeAudio(
   mime: string,
   config: SpeechConfig,
   secrets: SpeechSecrets,
+  language?: string,
 ) {
   if (!transcriptionAvailable(config))
     throw new PermanentError(
@@ -154,6 +155,7 @@ export async function transcribeAudio(
   const form = new FormData();
   form.set("model", config.sttModel);
   form.set("response_format", "json");
+  if (language) form.set("language", language);
   form.set(
     "file",
     new Blob([Buffer.from(data)], { type: mime }),

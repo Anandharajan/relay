@@ -4,7 +4,7 @@
 
 Relay remains a TypeScript application: React/PWA, Hono API and widget. The separate open-source inference services use their native runtimes:
 
-- VoiceStudio 0.5.7 + faster-whisper Base for transcription, selected through `/engines/select`.
+- VoiceStudio 0.5.7 + faster-whisper Small for transcription, selected through `/engines/select`. Base remains installed as the faster alternative; Small was selected after a real enrollment phrase mismatch.
 - VoiceStudio + MOSS-TTS-Nano for ungated CPU reference-voice cloning. Its installer pins upstream commit `8b7bcc9341b3b4ef3a3a58ba1338a7d85ff133eb`; the checkpoint is `OpenMOSS-Team/MOSS-TTS-Nano-100M` and the tokenizer is `OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano`.
 - PocketTTS 2.1.0 remains an optional English cloning engine if the account has gated model access. Its other languages need their own downloaded models and readiness metadata; this integration verifies PocketTTS English only.
 - Colibri at commit `0a5504a1dc64f86fcd0fe7db298b0448c730e7e6`, with Ai2's Apache-2.0 OLMoE-1B-7B-0125-Instruct Q4_K_M. The GGUF revision is `2ac1d27317927518c9ef7bd99f91f3f1e4ee288d`.
@@ -20,7 +20,7 @@ Use `.env.voice`, which is ignored by git. Set `RELAY_SECRET`, `VOICE_DB_PASSWOR
 docker compose --env-file .env.voice -f deploy/docker-compose.voice.yml --profile voicestudio up -d voicestudio
 ```
 
-Open `http://localhost:3900`, authenticate with the local admin key, and select Advanced in setup. Install/select MOSS-TTS-Nano, download its checkpoint and tokenizer, and download/select `Systran/faster-whisper-base`. Alternatively install PocketTTS, personally review its licence, obtain access at <https://huggingface.co/kyutai/pocket-tts>, and save a read token in Credentials. Never substitute the public **without-voice-cloning** weights for PocketTTS's gated cloning checkpoint.
+Open `http://localhost:3900`, authenticate with the local admin key, and select Advanced in setup. Install/select MOSS-TTS-Nano, download its checkpoint and tokenizer, and download/select `Systran/faster-whisper-small`. Alternatively install PocketTTS, personally review its licence, obtain access at <https://huggingface.co/kyutai/pocket-tts>, and save a read token in Credentials. Never substitute the public **without-voice-cloning** weights for PocketTTS's gated cloning checkpoint.
 
 The application checks actual cached cloning weights, tokenizer, backend availability and licence acknowledgement. VoiceStudio 0.5.7 omits PocketTTS from its model catalogue API; the gateway adds read-only metadata for the pinned English cloning checkpoint and checks its safetensors header/data length to reject incomplete files. Merely installing the Python package does not make cloning ready. A valid HF token can still receive 403 for the gated repository; check account access and fine-grained token permissions.
 
