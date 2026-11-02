@@ -183,23 +183,34 @@ voiceApi.get("/readiness", async (c) => {
   const studioCheck = async () => {
     if (settings.ttsProvider !== "voicestudio" && !settings.voicestudioUrl && !process.env.VOICESTUDIO_URL)
       return null;
-    const status = await voiceStudioStatus(settings, secrets).catch((e) => ({
-      state: "error",
-      message: (e as Error).message,
-    }));
-    return { ok: status.state === "connected", detail: status.message };
+    const status = await voiceStudioStatus(settings, secrets).catch(
+      (e): { state: string; message: string; canHear?: boolean; canClone?: boolean } => ({
+        state: "error",
+        message: (e as Error).name === "TimeoutError" ? "VoiceStudio did not answer in time." : (e as Error).message,
+      }),
+    );
+    const up = status.state === "connected";
+    return {
+      hear: { ok: up && status.canHear !== false, detail: status.message },
+      clone: { ok: up && status.canClone !== false, detail: status.message },
+    };
   };
   const [modelStatus, studio] = await Promise.all([modelCheck(), studioCheck()]);
   return c.json({
     db: { ok: true, detail: ctx.db.kind },
     model: modelStatus,
     transcription: transcriptionAvailable(settings)
-      ? (studio ?? { ok: true, detail: "Transcription service configured" })
+      ? // A separate transcription service does not depend on VoiceStudio.
+        settings.sttUrl
+        ? { ok: true, detail: "Transcription service configured" }
+        : (studio?.hear ?? { ok: true, detail: "Transcription service configured" })
       : { ok: false, detail: "No transcription service" },
     cloning:
       settings.ttsProvider === "none"
         ? { ok: false, detail: "No cloning engine" }
-        : (studio ?? { ok: true, detail: `${settings.ttsProvider} configured` }),
+        : settings.ttsProvider === "voicestudio"
+          ? (studio?.clone ?? { ok: false, detail: "VoiceStudio is not connected" })
+          : { ok: true, detail: `${settings.ttsProvider} configured` },
   });
 });
 voiceApi.get("/voicestudio/status", requireRole("admin"), async (c) => {
@@ -524,16 +535,28 @@ voiceApi.post("/runs/:id/clarify", requireRole("agent"), async (c) => {
 voiceApi.post("/runs/:id/approve", requireRole("agent"), async (c) => {
   const orgId = c.get("org").id,
     userId = c.get("user").id;
-  const { answer } = await body(
+  const { answer, voiceId } = await body(
     c,
-    z.object({ answer: z.string().trim().min(1).max(4000) }),
+    z.object({
+      answer: z.string().trim().min(1).max(4000),
+      // Any approved reply can be spoken in the person's cloned voice, not only the one chosen when asking.
+      voiceId: z.string().uuid().optional(),
+    }),
   );
   if (answer === notFoundReply)
     fail(409, "There is no answer to approve. Add a document and ask again.");
+  if (
+    voiceId &&
+    !(await ctx.db.one(
+      "select id from voice_profiles where id=$1 and org_id=$2 and user_id=$3 and revoked_at is null",
+      [voiceId, orgId, userId],
+    ))
+  )
+    fail(404, "Active voice not found");
   const id = await ctx.db.tx(async (db) => {
     const rows = await db.query(
-      "update voice_runs set answer=$4,approved_at=now(),status='queued_audio',error=null where id=$1 and org_id=$2 and user_id=$3 and status in ('review','audio_failed','ready_text') returning id",
-      [c.req.param("id"), orgId, userId, answer],
+      "update voice_runs set answer=$4,voice_id=coalesce($5,voice_id),approved_at=now(),status='queued_audio',error=null where id=$1 and org_id=$2 and user_id=$3 and status in ('review','audio_failed','ready_text') returning id",
+      [c.req.param("id"), orgId, userId, answer, voiceId ?? null],
     );
     if (!rows.length)
       fail(409, "This draft cannot be approved in its current state.");

@@ -982,3 +982,269 @@
   --vd-record-ink: #f4a9a3;
   --vd-record-line: #80403b;
 }
+
+/* Guidance: the next step, the enrollment steps and every blocked state say what to do. */
+.vd .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.vd-guide {
+  flex: none;
+  margin: 8px 16px 0;
+  border: 1px solid var(--vd-accent);
+  border-radius: 12px;
+  background: var(--vd-surface);
+}
+.vd-guide-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+}
+.vd-guide-count {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--vd-soft);
+  color: var(--vd-soft-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+.vd-guide-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.vd-guide-text span {
+  color: var(--muted, #687a72);
+}
+.vd-guide-next .btn {
+  flex: none;
+}
+.vd-guide-next .vd-text-button {
+  flex: none;
+  padding: 4px 0;
+}
+.vd-guide-steps {
+  list-style: none;
+  margin: 0;
+  padding: 4px 12px 10px;
+  border-top: 1px solid var(--border, #dce5e0);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px 16px;
+}
+.vd .vd-guide-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12.5px;
+}
+.vd-guide-steps li > div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.vd-guide-steps small {
+  color: var(--muted, #687a72);
+  line-height: 1.4;
+}
+.vd-guide-steps .vd-text-button {
+  padding: 0;
+  flex: none;
+}
+.vd-guide-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border, #dce5e0);
+  font-size: 11px;
+  font-weight: 700;
+}
+.vd-guide-steps li.done .vd-guide-mark {
+  background: var(--vd-accent);
+  border-color: var(--vd-accent);
+  color: var(--vd-surface);
+}
+.vd-guide-steps li.done strong {
+  color: var(--muted, #687a72);
+  font-weight: 500;
+}
+.vd-guide-steps li.next .vd-guide-mark {
+  border-color: var(--vd-accent);
+  color: var(--vd-accent);
+}
+.vd-guide-steps li.blocked {
+  opacity: 0.7;
+}
+.vd-dot.off {
+  background: var(--vd-warn-ink);
+  animation: none;
+}
+.vd-blocked {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--vd-warn-line);
+  border-radius: 9px;
+  background: var(--vd-warn-bg);
+  color: var(--vd-warn-ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.vd-blocked .vd-text-button {
+  color: inherit;
+  padding: 0;
+}
+.vd-steps {
+  list-style: none;
+  counter-reset: vd-step;
+  margin: 12px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.vd .vd-steps > li {
+  counter-increment: vd-step;
+  position: relative;
+  padding: 0 0 0 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.vd-steps > li::before {
+  content: counter(vd-step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border, #dce5e0);
+  font-size: 12px;
+  font-weight: 700;
+}
+.vd-steps > li.done::before {
+  content: "✓";
+  background: var(--vd-accent);
+  border-color: var(--vd-accent);
+  color: var(--vd-surface);
+}
+.vd-steps > li > small {
+  color: var(--muted, #687a72);
+}
+.vd-steps label:not(.vd-check) {
+  width: 100%;
+}
+.vd-steps .vd-record {
+  width: 100%;
+}
+.vd-preview {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vd-preview audio {
+  width: 100%;
+}
+.vd-approve {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+.vd .vd-speak-as {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.vd .vd-speak-as select {
+  width: auto;
+  max-width: 220px;
+  padding: 6px 8px;
+}
+.vd .vd-hint {
+  margin: 0;
+}
+.vd-hint .vd-text-button {
+  padding: 0;
+}
+.vd .vd-generating {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--vd-soft-ink);
+  background: var(--vd-soft);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.vd-howto,
+.vd-more-providers {
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+.vd-howto ol {
+  margin: 8px 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vd-howto code {
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+  vertical-align: bottom;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--bg, #f0f4ef);
+  font-size: 12px;
+}
+.vd-howto li > code {
+  display: block;
+  margin-top: 4px;
+}
+@media (max-width: 720px) {
+  .vd-guide {
+    margin: 6px 12px 0;
+  }
+  .vd-guide-next {
+    flex-wrap: wrap;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .vd-guide-text {
+    flex-basis: calc(100% - 46px);
+  }
+  .vd-guide-next .btn {
+    margin-left: 44px;
+  }
+  .vd-guide-steps {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+}

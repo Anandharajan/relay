@@ -28,8 +28,12 @@ export async function speechConfig(orgId: string) {
   const row = await ctx.db.one("select * from voice_settings where org_id=$1", [
     orgId,
   ]);
+  // VoiceStudio is the core engine: when the operator runs one, workspaces clone with it until they choose otherwise.
+  const defaults: SpeechConfig = process.env.VOICESTUDIO_URL
+    ? { ...speechDefaults, ttsProvider: "voicestudio" }
+    : speechDefaults;
   return {
-    settings: { ...speechDefaults, ...row?.settings } as SpeechConfig,
+    settings: { ...defaults, ...row?.settings } as SpeechConfig,
     secrets: row?.secrets_enc
       ? (JSON.parse(decrypt(row.secrets_enc)) as SpeechSecrets)
       : ({} as SpeechSecrets),
@@ -330,9 +334,11 @@ export async function voiceStudioStatus(config: SpeechConfig, secrets: SpeechSec
       message: `VoiceStudio health check returned ${health.status}.`,
       version: null,
     };
-  const [speech, engines] = await Promise.all([
+  const [speech, engines, asrEngines, models] = await Promise.all([
     get("/.well-known/voicestudio-speech"),
     get("/engines/tts"),
+    get("/engines/asr"),
+    get("/models"),
   ]);
   if (speech.status === 401 || speech.status === 403 || engines.status === 401 || engines.status === 403)
     return {
@@ -342,9 +348,26 @@ export async function voiceStudioStatus(config: SpeechConfig, secrets: SpeechSec
     };
   const capabilities = speech.ok ? ((await speech.json()) as any) : null;
   const tts = engines.ok ? ((await engines.json()) as any) : null;
+  const asr = asrEngines.ok ? ((await asrEngines.json().catch(() => null)) as any) : null;
+  const catalog = models.ok ? ((await models.json().catch(() => null)) as any) : null;
+  // A running VoiceStudio still cannot hear or clone until its models are downloaded and their licences accepted.
+  const installed = (repo: unknown) => {
+    const found = ((catalog?.models ?? []) as any[]).find((m) => m.repo_id === repo);
+    return found ? found.installed === true : null;
+  };
+  const cloningModel = typeof tts?.active_model === "string" ? tts.active_model : null;
+  const hearingModel = typeof asr?.active_model === "string" ? asr.active_model : null;
+  const missing = [
+    installed(hearingModel) === false && `${hearingModel} (speech to text)`,
+    installed(cloningModel) === false && `${cloningModel} (voice cloning)`,
+  ].filter((m): m is string => !!m);
   return {
     state: "connected" as const,
-    message: "Connected.",
+    message: missing.length
+      ? `Connected, but VoiceStudio has no model yet for: ${missing.join(", ")}. Open VoiceStudio, download them and accept their licences.`
+      : "Connected.",
+    canHear: installed(hearingModel) !== false,
+    canClone: installed(cloningModel) !== false,
     version: state?.version ?? capabilities?.service_version ?? null,
     device: state?.device ?? null,
     protocol: capabilities?.protocol ?? null,

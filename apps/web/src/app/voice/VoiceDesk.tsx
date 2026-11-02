@@ -4,7 +4,9 @@ import { api, useApi, useEvents } from "../../lib/api";
 import { canAdmin, useSession } from "../../lib/session";
 import { AddClient } from "./AddClient";
 import { CapabilityStrip } from "./CapabilityStrip";
+import { Dictation, dictationSupported } from "./Dictation";
 import { DocumentsPanel } from "./DocumentsPanel";
+import { Guide, type GuideStep } from "./Guide";
 import { isDocActive, settled, type Bootstrap, type Doc, type Readiness, type Tab } from "./model";
 import { PaneTabs } from "./PaneTabs";
 import { Recorder } from "./Recorder";
@@ -122,11 +124,114 @@ export function VoiceDesk() {
     setFile(audio);
     if (consent && clientId && !readOnly && !busy) void submit(audio);
   };
+  // Live readiness wins over saved settings, so a stopped VoiceStudio never looks usable.
+  const ready = readiness.data;
+  const cloning = ready
+    ? ready.cloning
+    : { ok: data.speech.ttsProvider !== "none", detail: "Not checked yet" };
+  const hearing = ready ? ready.transcription.ok : data.speech.transcriptionAvailable;
+  const isAdmin = canAdmin(me);
+  const docsReady = Boolean(docs.data?.some((d) => d.status === "ready"));
+  const goTo = (t: Tab) => {
+    setTab(t);
+    setView("agents");
+  };
+  const reveal = (selector: string, focus = selector) => {
+    setView("chat");
+    setTimeout(() => {
+      document.querySelector(selector)?.scrollIntoView({ block: "center", behavior: "smooth" });
+      document.querySelector<HTMLElement>(focus)?.focus();
+    }, 50);
+  };
+  const studioNeedsModels = !cloning.ok && /no model yet/.test(cloning.detail);
+  const steps: GuideStep[] = [
+    {
+      id: "studio",
+      title: studioNeedsModels ? "Finish VoiceStudio setup" : "Connect VoiceStudio",
+      detail: cloning.ok
+        ? "Connected."
+        : !isAdmin
+          ? "A workspace admin needs to set up VoiceStudio. You can still type questions meanwhile."
+          : studioNeedsModels
+            ? "VoiceStudio is running but has no models. In VoiceStudio, download a speech-to-text model and a cloning model and accept their licences."
+            : "VoiceStudio hears recorded questions and speaks replies in your cloned voice.",
+      done: cloning.ok,
+      blocked: !isAdmin,
+      action: { label: studioNeedsModels ? "See what is missing" : "Connect", run: () => goTo("settings") },
+    },
+    {
+      id: "voice",
+      title: "Clone your voice",
+      detail: cloning.ok
+        ? "Read one short phrase aloud. It takes about a minute."
+        : "Available once VoiceStudio is connected.",
+      done: liveVoices.length > 0,
+      blocked: !cloning.ok,
+      action: { label: "Clone my voice", run: () => goTo("voices") },
+    },
+    {
+      id: "client",
+      title: "Add a client",
+      detail: "Each client’s files are kept apart and searched only for them.",
+      done: data.clients.length > 0,
+      action: {
+        label: "Add client",
+        run: () => {
+          const add = document.querySelector<HTMLDetailsElement>(".vd-add-client");
+          if (add) add.open = true;
+          reveal(".vd-add-client", ".vd-add-client input");
+        },
+      },
+    },
+    {
+      id: "document",
+      title: "Upload a document",
+      detail: "A policy, guide or brief the agents can quote from.",
+      done: docsReady,
+      blocked: !clientId,
+      action: { label: "Upload", run: () => goTo("documents") },
+    },
+    {
+      id: "ask",
+      title: "Ask a question",
+      detail: hearing || dictationSupported
+        ? "Record it or type it, tick the consent box, then create the reply."
+        : "Type it, tick the consent box, then create the reply.",
+      done: runs.length > 0,
+      blocked: !clientId,
+      action: { label: "Ask", run: () => reveal("#vd-question") },
+    },
+    {
+      id: "approve",
+      title: "Review and approve the reply",
+      detail: "Check the sources, edit if needed, and approve it in your voice.",
+      done: runs.some((r) => ["ready", "ready_text", "queued_audio", "synthesizing"].includes(r.status)),
+      blocked: !runs.some((r) => r.status === "review" || r.status === "ready_text"),
+      action: { label: "Review", run: () => reveal(".vd-approve", ".vd-approve button") },
+    },
+    {
+      id: "listen",
+      title: "Play the reply in your voice",
+      detail: liveVoices.length
+        ? "Approve a reply with your voice selected, then play or download it."
+        : "Clone your voice first.",
+      done: runs.some((r) => r.status === "ready"),
+      blocked: !liveVoices.length || !cloning.ok,
+      action: { label: "Play", run: () => reveal(".vd-playback audio") },
+    },
+  ];
+  const missing = [
+    !clientId && "choose a client",
+    !file && question.trim().length < 3 && "type or record a question",
+    !consent && "tick the consent box",
+  ].filter(Boolean);
   const tabs: { id: Tab; label: string; marker?: ReactNode }[] = [
     { id: "run", label: "Agents", marker: running.length > 0 && <span className="vd-dot" aria-label="working" /> },
     { id: "documents", label: "Documents", marker: docsWorking && <span className="vd-dot" aria-label="indexing" /> },
     { id: "voices", label: "My voices", marker: <span className="vd-count">{liveVoices.length}</span> },
-    ...(canAdmin(me) ? [{ id: "settings" as const, label: "Voice settings" }] : []),
+    ...(isAdmin
+      ? [{ id: "settings" as const, label: "VoiceStudio", marker: !cloning.ok && <span className="vd-dot off" aria-label="not connected" /> }]
+      : []),
   ];
   return (
     <main className="vd vd-desk">
@@ -150,6 +255,7 @@ export function VoiceDesk() {
           record and upload.
         </div>
       )}
+      {!readOnly && <Guide steps={steps} />}
       <div className="vd-switch" role="group" aria-label="Choose a pane">
         <button type="button" aria-pressed={view === "chat"} onClick={() => setView("chat")}>
           Chat
@@ -201,10 +307,13 @@ export function VoiceDesk() {
                 run={r}
                 shown={r.id === shown?.id}
                 disabled={busy || readOnly}
+                voices={liveVoices}
+                cloning={cloning.ok}
                 open={(n) => openRun(r.id, n)}
-                approve={(answer) =>
+                enroll={() => goTo("voices")}
+                approve={(answer, voiceId) =>
                   act(() =>
-                    api(`/api/voice/runs/${r.id}/approve`, { body: { answer } }),
+                    api(`/api/voice/runs/${r.id}/approve`, { body: { answer, voiceId } }),
                   )
                 }
                 clarify={(answer) =>
@@ -230,6 +339,7 @@ export function VoiceDesk() {
             <label className="vd-question">
               Question or instructions
               <textarea
+                id="vd-question"
                 rows={2}
                 maxLength={6000}
                 value={question}
@@ -301,21 +411,44 @@ export function VoiceDesk() {
               </span>
             </label>
             <div className="vd-compose-actions">
-              <Recorder
-                onFile={recorded}
-                onError={setNotice}
-                disabled={readOnly || busy || !data.speech.transcriptionAvailable}
-              />
+              {hearing ? (
+                <Recorder
+                  onFile={recorded}
+                  onError={setNotice}
+                  disabled={readOnly || busy}
+                />
+              ) : dictationSupported ? (
+                <Dictation
+                  onText={(t) => setQuestion((q) => (q.trim() ? `${q.trim()} ${t}` : t))}
+                  onError={setNotice}
+                  disabled={readOnly || busy}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="vd-record"
+                  onClick={() =>
+                    isAdmin
+                      ? goTo("settings")
+                      : setNotice("Recording needs VoiceStudio. Ask a workspace admin to connect it, or type your question.")
+                  }
+                >
+                  ● Record voice
+                  <small>Needs VoiceStudio · tap to {isAdmin ? "connect" : "learn more"}</small>
+                </button>
+              )}
               <div className="vd-audio-input">
-                <label className="vd-text-button">
-                  Or upload audio
-                  <input
-                    type="file"
-                    accept="audio/*"
-                    disabled={readOnly || !data.speech.transcriptionAvailable}
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  />
-                </label>
+                {hearing && (
+                  <label className="vd-text-button">
+                    Or upload audio
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      disabled={readOnly}
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                )}
                 {file && (
                   <span>
                     {file.name}{" "}
@@ -342,9 +475,22 @@ export function VoiceDesk() {
                 {busy ? "Working…" : "Create reply →"}
               </button>
             </div>
-            {file && !consent && (
+            {file && !consent ? (
               <p className="vd-muted vd-compose-hint" role="status">
                 Recording kept. Tick the box above, then create the reply.
+              </p>
+            ) : (
+              !busy &&
+              !readOnly &&
+              missing.length > 0 && (
+                <p className="vd-muted vd-compose-hint">To create a reply: {missing.join(", ")}.</p>
+              )
+            )}
+            {!hearing && dictationSupported && (
+              <p className="vd-muted vd-compose-hint">
+                VoiceStudio cannot transcribe yet, so your browser turns speech into text
+                {/(Chrome|CriOS|Edg)\//.test(navigator.userAgent) ? " using Google’s speech service" : ""}.
+                Check the words before sending.
               </p>
             )}
           </div>
@@ -368,7 +514,7 @@ export function VoiceDesk() {
               docs={docs.data}
               busy={busy}
               readOnly={readOnly}
-              canDeleteClient={canAdmin(me)}
+              canDeleteClient={isAdmin}
               act={act}
               clientDeleted={async () => {
                 await reload();
@@ -379,6 +525,9 @@ export function VoiceDesk() {
           <div className="vd-tabpanel" role="tabpanel" id="vd-panel-voices" aria-labelledby="vd-tab-voices" hidden={tab !== "voices"}>
             <VoiceProfiles
               data={data}
+              cloning={cloning}
+              isAdmin={isAdmin}
+              openSettings={() => goTo("settings")}
               done={setupDone}
               report={setNotice}
               readOnly={readOnly}
@@ -386,7 +535,7 @@ export function VoiceDesk() {
           </div>
           {canAdmin(me) && (
             <div className="vd-tabpanel" role="tabpanel" id="vd-panel-settings" aria-labelledby="vd-tab-settings" hidden={tab !== "settings"}>
-              <SpeechSettings speech={data.speech} done={setupDone} report={setNotice} />
+              <SpeechSettings speech={data.speech} status={ready?.cloning} done={setupDone} report={setNotice} />
             </div>
           )}
         </section>
