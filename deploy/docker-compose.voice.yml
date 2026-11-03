@@ -69,6 +69,25 @@ services:
       - voicestudio-data:/voicestudio-data:ro
     healthcheck:
       disable: true
+  # Connects out to the hosted app (Render) and serves its VoiceStudio requests through the gateway.
+  # Nothing here accepts connections from the internet. Needs RELAY_URL and SPEECH_WORKER_SECRET in .env.voice.
+  speech-worker:
+    profiles: ["cpu-ai"]
+    image: fin-voice:local
+    command: ["node", "src/speech-worker.ts"]
+    restart: unless-stopped
+    environment:
+      RELAY_URL: ${RELAY_URL:-}
+      SPEECH_WORKER_SECRET: ${SPEECH_WORKER_SECRET:-}
+      GATEWAY_URL: http://inference-gateway:8790
+      INFERENCE_GATEWAY_SECRET: ${INFERENCE_GATEWAY_SECRET:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NODE_USE_ENV_PROXY: ${NODE_USE_ENV_PROXY:-}
+      NO_PROXY: inference-gateway,localhost,127.0.0.1
+    depends_on:
+      - inference-gateway
+    healthcheck:
+      disable: true
   colibri:
     profiles: ["cpu-ai"]
     image: relay-colibri:cpu

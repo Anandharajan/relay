@@ -4,7 +4,6 @@ import { api, useApi, useEvents } from "../../lib/api";
 import { canAdmin, useSession } from "../../lib/session";
 import { AddClient } from "./AddClient";
 import { CapabilityStrip } from "./CapabilityStrip";
-import { Dictation, dictationSupported } from "./Dictation";
 import { DocumentsPanel } from "./DocumentsPanel";
 import { Guide, type GuideStep } from "./Guide";
 import { isDocActive, settled, type Bootstrap, type Doc, type Readiness, type Tab } from "./model";
@@ -197,9 +196,9 @@ export function VoiceDesk() {
     {
       id: "ask",
       title: "Ask a question",
-      detail: hearing || dictationSupported
+      detail: hearing
         ? "Record it or type it, tick the consent box, then create the reply."
-        : "Type it, tick the consent box, then create the reply.",
+        : "Type it, tick the consent box, then create the reply. Recording works once VoiceStudio can transcribe.",
       done: runs.length > 0,
       blocked: !clientId,
       action: { label: "Ask", run: () => reveal("#vd-question") },
@@ -427,12 +426,6 @@ export function VoiceDesk() {
                   onError={setNotice}
                   disabled={readOnly || busy}
                 />
-              ) : dictationSupported ? (
-                <Dictation
-                  onText={(t) => setQuestion((q) => (q.trim() ? `${q.trim()} ${t}` : t))}
-                  onError={setNotice}
-                  disabled={readOnly || busy}
-                />
               ) : (
                 <button
                   type="button"
@@ -495,13 +488,6 @@ export function VoiceDesk() {
               missing.length > 0 && (
                 <p className="vd-muted vd-compose-hint">To create a reply: {missing.join(", ")}.</p>
               )
-            )}
-            {!hearing && dictationSupported && (
-              <p className="vd-muted vd-compose-hint">
-                VoiceStudio cannot transcribe yet, so your browser turns speech into text
-                {/(Chrome|CriOS|Edg)\//.test(navigator.userAgent) ? " using Google’s speech service" : ""}.
-                Check the words before sending.
-              </p>
             )}
           </div>
         </section>

@@ -14,30 +14,25 @@ export function SpeechSettings({
   report: (s: string) => void;
 }) {
   const [s, setS] = useState(speech),
-    [sttKey, setSttKey] = useState(""),
-    [ttsKey, setTtsKey] = useState(""),
     [studioKey, setStudioKey] = useState(""),
     [studio, setStudio] = useState<StudioStatus | null>(null),
     [busy, setBusy] = useState(false);
   const field = (k: keyof Speech, v: string) => setS((p) => ({ ...p, [k]: v }));
-  const save = async (ttsProvider = s.ttsProvider) => {
+  // VoiceStudio does all the speech work: saving clears any other transcription or cloning provider.
+  const save = async (ttsProvider = s.ttsProvider === "none" ? "none" : "voicestudio") => {
     await api("/api/voice/settings", {
       method: "PUT",
       body: {
-        sttUrl: s.sttUrl,
+        sttUrl: "",
         sttModel: s.sttModel,
         ttsProvider,
         ttsModel: s.ttsModel,
         engine: s.engine,
         voicestudioUrl: s.voicestudioUrl,
         widgetVoice: s.widgetVoice,
-        sttKey,
-        ttsKey,
         voicestudioKey: studioKey,
       },
     });
-    setSttKey("");
-    setTtsKey("");
     setStudioKey("");
   };
   return (
@@ -174,7 +169,7 @@ export function SpeechSettings({
               value={s.engine}
               onChange={(e) => field("engine", e.target.value)}
             >
-              <option value="">VoiceStudio default (omnivoice)</option>
+              <option value="">VoiceStudio’s active engine</option>
               {studio.engines.map((engine) => (
                 <option key={engine.id} value={engine.id}>
                   {engine.name}
@@ -191,65 +186,6 @@ export function SpeechSettings({
           )}
         </label>
       </fieldset>
-      <details className="vd-more-providers">
-        <summary>Other providers (optional)</summary>
-      <div className="vd-two">
-        <label>
-          Transcription base URL
-          <input
-            type="url"
-            value={s.sttUrl}
-            placeholder="https://api.openai.com/v1 (blank uses VoiceStudio)"
-            onChange={(e) => field("sttUrl", e.target.value)}
-          />
-        </label>
-        <label>
-          Transcription model
-          <input
-            required
-            value={s.sttModel}
-            onChange={(e) => field("sttModel", e.target.value)}
-          />
-        </label>
-        <label>
-          Transcription API key {speech.sttKeySaved && "· saved"}
-          <input
-            type="password"
-            autoComplete="new-password"
-            value={sttKey}
-            onChange={(e) => setSttKey(e.target.value)}
-            placeholder="Leave blank to keep saved key"
-          />
-        </label>
-        <label>
-          Cloning provider
-          <select
-            value={s.ttsProvider}
-            onChange={(e) => field("ttsProvider", e.target.value)}
-          >
-            <option value="none">Not connected</option>
-            <option value="voicestudio">VoiceStudio</option>
-            <option value="elevenlabs">ElevenLabs (BYOK)</option>
-          </select>
-        </label>
-        <label>
-          ElevenLabs API key {speech.ttsKeySaved && "· saved"}
-          <input
-            type="password"
-            autoComplete="new-password"
-            value={ttsKey}
-            onChange={(e) => setTtsKey(e.target.value)}
-          />
-        </label>
-        <label>
-          ElevenLabs speech model
-          <input
-            value={s.ttsModel}
-            onChange={(e) => field("ttsModel", e.target.value)}
-          />
-        </label>
-      </div>
-      </details>
       <label className="vd-check">
         <input
           type="checkbox"

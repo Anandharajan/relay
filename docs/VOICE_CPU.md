@@ -52,6 +52,20 @@ For the local app, set `VOICESTUDIO_URL=http://inference-gateway:8790/speech`, `
 
 ## Render connection
 
+### Outbound worker (no tunnel)
+
+Render reaches VoiceStudio without any inbound connection to this computer. The `speech-worker` service connects out to Render over HTTPS, long-polls for queued VoiceStudio requests, sends each to the local gateway and posts the answer back. Only `/speech/...` routes are forwarded, and the gateway still applies its own allow-list.
+
+1. In `.env.voice`: `RELAY_URL=https://relay-voice-8knp.onrender.com` and a random `SPEECH_WORKER_SECRET` of at least 32 characters.
+2. On Render: `VOICESTUDIO_URL=worker://relay/speech` and the same `SPEECH_WORKER_SECRET`, then redeploy.
+3. Here, rebuild the image and start the worker: `docker compose --env-file .env.voice -f deploy/docker-compose.voice.yml --profile cpu-ai --profile voicestudio up -d --build speech-worker`.
+
+The desk's readiness says "The voice computer is not connected" whenever the worker has not polled for 45 seconds. Requests are held in the web service's memory, so a Render restart drops in-flight speech work; the durable job queue then retries it. Render's free plan sleeps when idle; the worker's polling keeps it awake, which counts against the free monthly hours.
+
+On 3 November 2026 a spoken question generated with VoiceStudio's bundled demo voice went from a local stand-in app through the worker to Whisper Small and came back correctly transcribed, with a sourced reply held for review, in 34 seconds.
+
+### Inbound alternative
+
 Keep models outside Render's small web-service container. Publish **only the authenticated gateway** through a stable HTTPS tunnel or an always-on server; never publish port 3900 or Colibri directly. A temporary Cloudflare quick tunnel is suitable only for an attended test: its hostname changes after restart, it has no pilot availability guarantee, and the computer must remain awake.
 
 On Render, operator environment values point to `https://<gateway-host>/speech` and `https://<gateway-host>/llm/v1`, with the gateway secret for each corresponding key. The database, session secret and Aiven certificate stay unchanged. Do not log gateway or upstream keys. Workspace-owned custom speech URLs additionally require the operator's explicit hostname allow-list.

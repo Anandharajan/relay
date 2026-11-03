@@ -1,6 +1,7 @@
 import { ctx } from "../ctx.ts";
 import { decrypt } from "../lib/crypto.ts";
 import { PermanentError } from "../lib/permanent-error.ts";
+import { speechFetch } from "../lib/speech-relay.ts";
 export interface SpeechConfig {
   sttUrl: string;
   sttModel: string;
@@ -127,7 +128,7 @@ async function engineDetail(response: Response) {
   return text ? ` ${text.slice(0, 200)}` : "";
 }
 async function checked(url: string, options: RequestInit, timeoutMs = 120000) {
-  const response = await fetch(url, {
+  const response = await speechFetch(url, {
     ...options,
     redirect: "error",
     signal: AbortSignal.timeout(timeoutMs),
@@ -321,7 +322,7 @@ export async function removeProviderVoice(
 export async function voiceStudioStatus(config: SpeechConfig, secrets: SpeechSecrets) {
   const studio = voiceStudio(config, secrets);
   const get = (path: string) =>
-    fetch(studio.base + path, {
+    speechFetch(studio.base + path, {
       headers: headers(studio.key),
       redirect: "error",
       signal: AbortSignal.timeout(8000),
