@@ -134,7 +134,8 @@ voiceApi.put("/settings", requireRole("admin"), async (c) => {
     z.object({
       sttUrl: z.string().max(300),
       sttModel: z.string().min(1).max(100),
-      ttsProvider: z.enum(["none", "voicestudio", "elevenlabs"]),
+      // VoiceStudio is the only cloning engine; ElevenLabs code remains only so older profiles can still be revoked.
+      ttsProvider: z.enum(["none", "voicestudio"]),
       ttsModel: z.string().min(1).max(100),
       engine: z.string().max(100),
       sttKey: z.string().max(1000).optional(),

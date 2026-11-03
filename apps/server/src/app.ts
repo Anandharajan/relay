@@ -1,4 +1,5 @@
 import { voiceApi } from './routes/voice.ts';
+import { speechWorkerApi } from './lib/speech-relay.ts';
 import { notifications } from './routes/notifications.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -52,6 +53,8 @@ export function buildApp() {
   );
 
   app.route('/api/voice', voiceApi);
+  // The voice computer's outbound worker; off unless SPEECH_WORKER_SECRET is set.
+  app.route('/api/speech-worker', speechWorkerApi);
   app.route('/api/auth', auth);
   app.route('/api/me', me);
   app.route('/api/workspace', workspace);

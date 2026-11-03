@@ -34,8 +34,10 @@ services:
       - key: PLATFORM_ADMIN_EMAILS
         sync: false
       - key: VOICESTUDIO_URL
-        sync: false        # optional operator-hosted VoiceStudio; leave unset for ElevenLabs BYOK
+        value: worker://relay/speech   # the voice computer's worker connects out and serves VoiceStudio requests
+      - key: SPEECH_WORKER_SECRET
+        sync: false        # same value as SPEECH_WORKER_SECRET in the voice computer's .env.voice (32+ characters)
       - key: VOICESTUDIO_API_KEY
-        sync: false
+        sync: false        # unused with the worker; the voice computer holds the gateway key
       - key: SPEECH_STT_ALLOWED_HOSTS
         sync: false        # extra speech hosts workspaces may use, comma-separated

@@ -29,7 +29,7 @@ The app only accepts local addresses when the operator sets `SPEECH_ALLOW_PRIVAT
 
 ## 4. Add a client and a document, then ask
 
-Add a client, upload a policy or guide under **Documents**, tick the consent box and either record or type a question. Without VoiceStudio's speech-to-text, **Speak your question** uses the browser's own speech recognition and types the words into the box (Chrome sends that audio to Google).
+Add a client, upload a policy or guide under **Documents**, tick the consent box and either record or type a question. All speech goes through VoiceStudio: until it can transcribe, the record button explains what is missing and you can type instead.
 
 ## 5. Approve in your voice
 
@@ -37,4 +37,4 @@ Edit the draft if needed, choose your voice under **Speak it in**, and press **A
 
 ## Hosted demo
 
-The Render service has no VoiceStudio, so recording uses the browser fallback and replies stay text-only there. Cloning needs a VoiceStudio the app can reach over HTTPS, allowed by the operator in `SPEECH_STT_ALLOWED_HOSTS`.
+The Render service has no VoiceStudio, so recording and cloning are off there and replies stay text-only. It needs the authenticated inference gateway on a stable HTTPS address (see `VOICE_CPU.md`). Until then, use the local desk at `http://localhost:8788` on the computer that runs VoiceStudio.
