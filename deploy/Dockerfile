@@ -1,5 +1,5 @@
 # Relay: single image serving the API, dashboard PWA, landing page and widget.js
-FROM node:24-slim AS build
+FROM node:26-slim AS build
 WORKDIR /app
 ARG NODE_USE_ENV_PROXY
 RUN corepack enable
@@ -11,7 +11,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build && pnpm --filter @relay/server deploy --prod --legacy /out/server
 
-FROM node:24-slim
+FROM node:26-slim
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=8787 \
