@@ -932,6 +932,10 @@ test("HR handbook: multi-part answers and checklists stay complete without a mod
   }
   const remote = (await ask("answer", "How many remote days can I work each week?")).answer;
   assert.match(remote, /2 remote-work days/);
+  const remoteRequest = (await ask("answer", "Who approves work from home requests and when do I need to submit mine?")).answer;
+  assert.match(remoteRequest, /reporting-manager approval/);
+  assert.match(remoteRequest, /PeoplePortal before the start of the work week/);
+  assert.doesNotMatch(remoteRequest, /employment agreement/);
   const expense = (await ask("answer", "How long do I have to submit an expense?")).answer;
   assert.match(expense, /30 calendar days/);
   const both = (await ask("checklist", "Prepare the onboarding checklist, including what happens before day one.")).answer;
@@ -945,6 +949,7 @@ test("HR handbook: multi-part answers and checklists stay complete without a mod
     ["Can I send my passport copy over chat?", /Do not collect identity documents/, /18 paid/],
     ["What is the sick leave allowance?", /Sick leave is a separate policy/, /18 paid/],
     ["When do carried forward leave days expire?", /expire on 31 March/, /18 paid/],
+    ["What is the deadline to use my unused vacation days from last year?", /expire on 31 March/, /18 paid/],
   ] as const) {
     const answer = (await ask("answer", question)).answer;
     assert.match(answer, wanted, `${question}: ${answer}`);
@@ -975,6 +980,19 @@ test("HR handbook: multi-part answers and checklists stay complete without a mod
   assert.deepEqual(none.citations, []);
   const refused = await request(`/api/voice/runs/${id}/approve`, { body: { answer: none.answer } });
   assert.equal(refused.status, 409);
+  const previousModelReply = modelReply;
+  await json("/api/workspace/model", {
+    method: "PUT",
+    body: { provider: "freetoken", model: "fixture-model", baseUrl: process.env.VOICESTUDIO_URL + "/v1" },
+  });
+  try {
+    modelReply = "Full-time employees receive 18 paid annual leave days per calendar year.";
+    const missing = await ask("answer", "How many parental leave days do employees get?");
+    assert.match(missing.answer, /could not find/);
+  } finally {
+    modelReply = previousModelReply;
+    await json("/api/workspace/model", { method: "PUT", body: { provider: "extractive" } });
+  }
 });
 test("a short rate limit is waited out; a long one fails straight away", async () => {
   const { createLlm, retryWaitMs } = await import("../src/adapters/llm.ts");

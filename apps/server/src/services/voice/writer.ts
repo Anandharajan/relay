@@ -127,9 +127,14 @@ export async function writeWithModel({
     "failed",
   );
   // The model found something word matching did not: let its draft choose real source sentences to quote.
-  const reply =
+  const recovered =
     !extracted && !offQuestion && !saysFilesSilent.test(draft)
-      ? extractiveDraft(quotedInSources(draft), "answer", sources) || notFoundReply
-      : extracted || notFoundReply;
+      ? extractiveDraft(quotedInSources(draft), "answer", sources)
+      : "";
+  const reply = extracted || (
+    recovered && addressesQuestion(question, task, recovered, sources, true).ok
+      ? recovered
+      : notFoundReply
+  );
   return { reply, verified: false };
 }

@@ -44,13 +44,15 @@ export function sectionsOf(sources: Source[]) {
 }
 /** Words that say what kind of thing is asked for, not which topic it is about. */
 const askWords = stems(
-  "allow allowed allowance amount benefit checklist copy draft each employee entitled entitlement explain get happens hire ignore joiner long look much many member money new once person policy receive reimbursement reply rule send sent staff starter summarize summary take tell telling time worker",
+  "allow allowed allowance amount benefit checklist copy draft each employee employees entitled entitlement explain get happens hire ignore joiner long look much many member money new once person policy receive reimbursement reply rule send sent staff starter summarize summary take tell telling time worker",
 );
 /** Lengths of time: a question's other words decide whether its topic is covered. */
 const timeWords = stems("day days week weeks month months year years");
 /** Everyday workplace wording that documents usually put differently, for replies without a model. */
 const sameMeaning: [RegExp, string][] = [
   [/\b(paid time off|pto|time off|vacation( days?)?)\b/gi, "annual leave"],
+  [/\bunused (?:annual )?leave(?: days?)? from (?:last|the previous) year\b/gi, "carried forward leave days"],
+  [/\bdeadline to use\b/gi, "expire"],
   [/\b(roll(ing)?[- ]?over|carry(ing)? over)\b/gi, "carry forward"],
   [/\b(work(ing)? from home|wfh)\b/gi, "remote work"],
   [/\b(passports?|aadhaar|id proofs?|id cards?)\b/gi, "identity documents"],
@@ -100,6 +102,16 @@ export function addressesQuestion(
   // Half or more: one unknown word in a longer question is usually just phrasing.
   if (strict && task === "answer" && named.length && absent.length * 2 >= named.length)
     return { ok: false, term: absent[0]! };
+  const normalizedQuestion = inDocumentWords(question).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ");
+  // A named policy is a better topic anchor than a rarer verb such as "submit".
+  const policy = sectionsOf(sources)
+    .map(({ heading }) => heading.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim())
+    .filter((heading) => heading.includes(" ") && ` ${normalizedQuestion} `.includes(` ${heading} `))
+    .sort((a, b) => b.length - a.length)[0];
+  if (policy) {
+    const text = inDocumentWords(quotedInSources(reply)).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ");
+    if (` ${text} `.includes(` ${policy} `)) return { ok: true, term: policy };
+  }
   const rarest = [...scores].filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1])[0]?.[0];
   if (!rarest) return { ok: !strict, term: terms[0] ?? null };
   // A model may rephrase, and "9:30 AM" answers "what time": it need only stay on the topic.
