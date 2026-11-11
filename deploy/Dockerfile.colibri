@@ -1,11 +1,11 @@
-FROM python:3.11-slim-bookworm AS build
+FROM python:3.15-slim-bookworm AS build
 ARG COLIBRI_REVISION=0a5504a1dc64f86fcd0fe7db298b0448c730e7e6
 RUN apt-get update && apt-get install -y --no-install-recommends git build-essential ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /source
 RUN git init && git remote add origin https://github.com/JustVugg/colibri.git && git fetch --depth 1 origin ${COLIBRI_REVISION} && git checkout --detach FETCH_HEAD
 RUN make -C c -j2 colibri olmoe ARCH=x86-64-v3
 
-FROM python:3.11-slim-bookworm
+FROM python:3.15-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
 COPY --from=build /source/c /opt/colibri
 WORKDIR /opt/colibri
